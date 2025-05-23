@@ -1,7 +1,7 @@
 {
   description = "Flake for {{name}} Project";
 
-  inputs.system-flake.url = "path:/etc/nixos";
+  inputs.system-flake.url = "github:Steven-S1020/Nixos-Configuration";
   inputs.nixpkgs.follows = "system-flake/nixpkgs";
 
   outputs =
@@ -22,4 +22,3 @@
       };
     };
 }
-
