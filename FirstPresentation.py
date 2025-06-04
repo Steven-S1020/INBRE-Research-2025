@@ -21,9 +21,10 @@ def _(mo):
 
     mo.show_code()
 
-    sns.set_theme(style='white', context='poster', font_scale=1.25, palette='pastel')
+    sns.set_theme(style='white', context='poster',
+                  font_scale=1.25, palette='pastel')
 
-    plt.rcParams['figure.figsize'] = (15,13)
+    plt.rcParams['figure.figsize'] = (15, 13)
     plt.rcParams['figure.dpi'] = 85
     return gamma, norm, np, plt, skewnorm, sns
 
@@ -41,8 +42,10 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    normal_mu = mo.ui.number(start=-2, stop=2, step=0.25, value=0, label=fr'$\mu$')
-    normal_sigma = mo.ui.number(start=0.25, stop=3, step=0.25, value=1, label=fr'$\sigma$')
+    normal_mu = mo.ui.number(
+        start=-2, stop=2, step=0.25, value=0, label=fr'$\mu$')
+    normal_sigma = mo.ui.number(
+        start=0.25, stop=3, step=0.25, value=1, label=fr'$\sigma$')
     return normal_mu, normal_sigma
 
 
@@ -60,17 +63,19 @@ def _(norm, np, plt, sns):
         fig, ax = plt.subplots()
 
         sns.histplot(data_norm, bins=16, stat='density', ax=ax)
-        ax.plot(x_range_norm, y_pdf_norm, color='red', linewidth=3, label='PDF')
+        ax.plot(x_range_norm, y_pdf_norm,
+                color='red', linewidth=3, label='PDF')
         ax.set_xlim(-3, 3)
-        ax.set_ylim(0,0.55)
+        ax.set_ylim(0, 0.55)
         ax.set_title('Normal Distribution', fontsize=40, pad=20)
         ax.set_xlabel('$X$ Value', fontsize=40, labelpad=20)
         ax.set_ylabel('Probability', fontsize=40, labelpad=20)
 
-        ax.vlines(x = mu, ymin = 0, ymax = max(y_pdf_norm), colors = 'purple', linestyle='--')
-        ax.annotate(fr'$\mu={mu}$', xy=(mu,max(y_pdf_norm)), xytext=(1.5,0.45), arrowprops=dict(arrowstyle="simple",
-                                    fc="0.6", ec="none",
-                                    connectionstyle="arc3,rad=0.3"))
+        ax.vlines(x=mu, ymin=0, ymax=max(y_pdf_norm),
+                  colors='purple', linestyle='--')
+        ax.annotate(fr'$\mu={mu}$', xy=(mu, max(y_pdf_norm)), xytext=(1.5, 0.45), arrowprops=dict(arrowstyle="simple",
+                                                                                                  fc="0.6", ec="none",
+                                                                                                  connectionstyle="arc3,rad=0.3"))
 
         # Adjust tick label size
         ax.tick_params(labelsize=20)
@@ -87,10 +92,10 @@ def _(make_normal_fig, mo, normal_mu, normal_sigma):
     def normal_tab():
         normal_outputs = [
             mo.md("---"),
-            mo.md("#"),
             mo.md("### Parameters :"),
             mo.md("#"),
-            mo.hstack([normal_mu, normal_sigma], justify='center', align='center', gap=5),
+            mo.hstack([normal_mu, normal_sigma],
+                      justify='center', align='center', gap=5),
             mo.as_html(make_normal_fig(normal_mu.value, normal_sigma.value))
         ]
 
@@ -100,8 +105,10 @@ def _(make_normal_fig, mo, normal_mu, normal_sigma):
 
 @app.cell
 def _(mo):
-    gamma_alpha = mo.ui.number(start=0.25, stop=999, step=0.25, value=4.75, label=fr'$\alpha$')
-    gamma_beta = mo.ui.number(start=0.25, stop=10, step=0.25, value=4.5, label=fr'$\beta$')
+    gamma_alpha = mo.ui.number(
+        start=0.25, stop=999, step=0.25, value=4.75, label=fr'$\alpha$')
+    gamma_beta = mo.ui.number(
+        start=0.25, stop=10, step=0.25, value=4.5, label=fr'$\beta$')
     return gamma_alpha, gamma_beta
 
 
@@ -138,7 +145,8 @@ def _(gamma, np, plt, sns):
 
 @app.cell
 def _(mo):
-    gamma_radio = mo.ui.radio(options=["Custom","Chi-Square", "Exponential"], label="Parameter Options:")
+    gamma_radio = mo.ui.radio(
+        options=["Custom", "Chi-Square", "Exponential"], label="Parameter Options:")
     return (gamma_radio,)
 
 
@@ -147,7 +155,6 @@ def _(gamma_alpha, gamma_beta, gamma_radio, make_gamma_fig, mo):
     def gamma_tab():
         gamma_outputs = [
             mo.md("---"),
-            mo.md("#"),
             mo.md("### Parameters :"),
             mo.md("#"),
             gamma_radio,
@@ -162,12 +169,13 @@ def _(gamma_alpha, gamma_beta, gamma_radio, make_gamma_fig, mo):
         # Add controls only if needed
         if gamma_radio.value == 'Custom':
             gamma_outputs.append(
-                mo.hstack([gamma_alpha, gamma_beta], justify='center', align='center', gap=5)
+                mo.hstack([gamma_alpha, gamma_beta],
+                          justify='center', align='center', gap=5)
             )
             gamma_alpha_value = gamma_alpha.value
             gamma_beta_value = gamma_beta.value
         elif gamma_radio.value == 'Chi-Square':
-            gamma_alpha_value = 499.5
+            gamma_alpha_value = 4
             gamma_beta_value = 2
         elif gamma_radio.value == 'Exponential':
             gamma_alpha_value = 1
@@ -186,7 +194,7 @@ def _(norm, np, plt, skewnorm, sns):
         if fig_num == 1:
             mu = mu_value
             sigma = sigma_value
-        
+
             data_norm = np.random.normal(mu, sigma, 1000)
 
             x_min_norm, x_max_norm = min(data_norm), max(data_norm)
@@ -197,20 +205,25 @@ def _(norm, np, plt, skewnorm, sns):
             fig, ax = plt.subplots()
 
             sns.histplot(data_norm, bins=16, stat='density', ax=ax)
-            ax.plot(x_range_norm, y_pdf_norm, color='red', linewidth=3, label='PDF')
+            ax.plot(x_range_norm, y_pdf_norm,
+                    color='red', linewidth=3, label='PDF')
             ax.set_xlim(-3, 3)
-            ax.set_ylim(0,0.55)
+            ax.set_ylim(0, 0.55)
             ax.set_title('Normal Distribution', fontsize=40, pad=20)
             ax.set_xlabel('$X$ Value', fontsize=40, labelpad=20)
             ax.set_ylabel('Probability', fontsize=40, labelpad=20)
 
-            ax.vlines(x = mu, ymin = 0, ymax = max(y_pdf_norm), colors = 'purple', linestyle='--')
-            ax.annotate(fr'$\mu={mu}$', xy=(mu,max(y_pdf_norm)), xytext=(1.5,0.45), arrowprops=dict(arrowstyle="simple", fc="0.6", ec="none", connectionstyle="arc3,rad=0.3"))
+            ax.vlines(x=mu, ymin=0, ymax=max(y_pdf_norm),
+                      colors='purple', linestyle='--')
+            ax.annotate(fr'$\mu={mu}$', xy=(mu, max(y_pdf_norm)), xytext=(1.5, 0.45), arrowprops=dict(
+                arrowstyle="simple", fc="0.6", ec="none", connectionstyle="arc3,rad=0.3"))
 
-            ax.annotate('', xy=(mu+sigma,0.02), xytext=(mu-sigma,0.02), arrowprops=dict(arrowstyle="<->", lw=3, ec="gray"))
+            ax.annotate('', xy=(mu+sigma, 0.02), xytext=(mu-sigma, 0.02),
+                        arrowprops=dict(arrowstyle="<->", lw=3, ec="gray"))
 
-            ax.annotate(fr'$\sigma={sigma}$', xy=(mu,0.02), xytext=(1.75,0.25), arrowprops=dict(arrowstyle="simple", fc="0.6", ec="none", connectionstyle="arc3,rad=0.3"))
-        
+            ax.annotate(fr'$\sigma={sigma}$', xy=(mu, 0.02), xytext=(1.75, 0.25), arrowprops=dict(
+                arrowstyle="simple", fc="0.6", ec="none", connectionstyle="arc3,rad=0.3"))
+
             # Adjust tick label size
             ax.tick_params(labelsize=20)
 
@@ -221,28 +234,32 @@ def _(norm, np, plt, skewnorm, sns):
         elif fig_num == 2:
             # data_norm = skewnorm.rvs(skew_value, loc=mu_value, scale=sigma_value, size=2000)
             # mu, sigma, skew, kurt = skewnorm.stats(skew_value, moments='mvsk')
-        
+
             x_min_norm, x_max_norm = -3, 3
 
             x_range = np.linspace(x_min_norm, x_max_norm, 2000)
-            y_pdf = skewnorm.pdf(x=x_range,a=skew_value,loc=mu_value,scale=sigma_value)
-            y_pdf2 = skewnorm.pdf(x=x_range,a=-skew_value,loc=-mu_value,scale=sigma_value)
+            y_pdf = skewnorm.pdf(x=x_range, a=skew_value,
+                                 loc=mu_value, scale=sigma_value)
+            y_pdf2 = skewnorm.pdf(x=x_range, a=-skew_value,
+                                  loc=-mu_value, scale=sigma_value)
 
             fig, ax = plt.subplots()
 
             # sns.histplot(data_norm, bins=50, stat='density', ax=ax, kde=True)
-            ax.plot(x_range, y_pdf, color='red', linewidth=3, label='PDF - Skewed Left')
-            ax.fill_between(x_range,y_pdf, alpha=0.4,color='red')
+            ax.plot(x_range, y_pdf, color='red',
+                    linewidth=3, label='PDF - Skewed Left')
+            ax.fill_between(x_range, y_pdf, alpha=0.4, color='red')
 
-            ax.plot(x_range, y_pdf2, color='lightblue', linewidth=3, label='PDF - Skewed Right')
-            ax.fill_between(x_range,y_pdf2, alpha=0.5,color='lightblue')
+            ax.plot(x_range, y_pdf2, color='lightblue',
+                    linewidth=3, label='PDF - Skewed Right')
+            ax.fill_between(x_range, y_pdf2, alpha=0.5, color='lightblue')
 
             ax.set_xlim(-2, 2)
-            ax.set_ylim(0,1)
+            ax.set_ylim(0, 1)
             ax.set_title('Skewed Distributions', fontsize=40, pad=20)
             ax.set_xlabel('$X$ Value', fontsize=40, labelpad=20)
             ax.set_ylabel('Probability', fontsize=40, labelpad=20)
-        
+
             # Adjust tick label size
             ax.tick_params(labelsize=20)
 
@@ -254,25 +271,28 @@ def _(norm, np, plt, skewnorm, sns):
             x_min_norm, x_max_norm = -3, 3
 
             x_range = np.linspace(x_min_norm, x_max_norm, 2000)
-            y_pdf = skewnorm.pdf(x=x_range,a=skew_value,loc=mu_value,scale=sigma_value)
-            y_pdf2 = skewnorm.pdf(x=x_range,a=skew_value,loc=-mu_value,scale=sigma_value-0.5)
+            y_pdf = skewnorm.pdf(x=x_range, a=skew_value,
+                                 loc=mu_value, scale=sigma_value)
+            y_pdf2 = skewnorm.pdf(x=x_range, a=skew_value,
+                                  loc=-mu_value, scale=sigma_value-0.5)
 
-        
             fig, ax = plt.subplots()
 
             # sns.histplot(data_norm, bins=50, stat='density', ax=ax, kde=True)
-            ax.plot(x_range, y_pdf, color='red', linewidth=3, label='PDF - Heavier Tail')
-            ax.fill_between(x_range,y_pdf, alpha=0.4,color='red')
+            ax.plot(x_range, y_pdf, color='red',
+                    linewidth=3, label='PDF - Heavier Tail')
+            ax.fill_between(x_range, y_pdf, alpha=0.4, color='red')
 
-            ax.plot(x_range, y_pdf2, color='lightblue', linewidth=3, label='PDF - Lighter Tail')
-            ax.fill_between(x_range,y_pdf2, alpha=0.5,color='lightblue')
+            ax.plot(x_range, y_pdf2, color='lightblue',
+                    linewidth=3, label='PDF - Lighter Tail')
+            ax.fill_between(x_range, y_pdf2, alpha=0.5, color='lightblue')
 
             ax.set_xlim(-2, 2)
-            ax.set_ylim(0,1)
+            ax.set_ylim(0, 1)
             ax.set_title('Distributions Showing Kurtosis', fontsize=40, pad=20)
             ax.set_xlabel('$X$ Value', fontsize=40, labelpad=20)
             ax.set_ylabel('Probability', fontsize=40, labelpad=20)
-        
+
             # Adjust tick label size
             ax.tick_params(labelsize=20)
 
@@ -284,13 +304,15 @@ def _(norm, np, plt, skewnorm, sns):
 
 @app.cell
 def _(mo):
-    extra_radio = mo.ui.radio(options=['mean_variance', 'skew', 'kurt'], label='Select Extra Fig to show:')
+    extra_radio = mo.ui.radio(
+        options=['mean_variance', 'skew', 'kurt'], label='Select Extra Fig to show:')
     return (extra_radio,)
 
 
 @app.cell
 def _(mo):
-    extra_skew = mo.ui.number(start=-100, stop=100, step=1, value=0, label=fr'$skew$')
+    extra_skew = mo.ui.number(start=-100, stop=100,
+                              step=1, value=0, label=fr'$skew$')
     return (extra_skew,)
 
 
@@ -307,19 +329,18 @@ def _(extra_radio, extra_skew, make_extra_figs, mo, normal_mu, normal_sigma):
             extra_outputs.append(
                 mo.hstack([normal_mu, normal_sigma], justify='center', align='center', gap=5))
             extra_outputs.append(
-                mo.as_html(make_extra_figs(1,normal_mu.value,normal_sigma.value,extra_skew.value)))
+                mo.as_html(make_extra_figs(1, normal_mu.value, normal_sigma.value, extra_skew.value)))
         elif extra_radio.value == 'skew':
             extra_outputs.append(
                 mo.hstack([normal_mu, normal_sigma, extra_skew], justify='center', align='center', gap=5))
-            extra_outputs.append(mo.as_html(make_extra_figs(3,normal_mu.value,normal_sigma.value,extra_skew.value)))
-        
+            extra_outputs.append(mo.as_html(make_extra_figs(
+                3, normal_mu.value, normal_sigma.value, extra_skew.value)))
+
         elif extra_radio.value == 'kurt':
             extra_outputs.append(
                 mo.hstack([normal_mu, normal_sigma], justify='center', align='center', gap=5))
             extra_outputs.append(
-                mo.as_html(make_extra_figs(3,normal_mu.value,normal_sigma.value,extra_skew.value)))
-    
-        
+                mo.as_html(make_extra_figs(3, normal_mu.value, normal_sigma.value, extra_skew.value)))
 
         return mo.vstack(extra_outputs)
     return (extra_tab,)
