@@ -44,8 +44,11 @@ def _():
     plt.rcParams['ytick.minor.size'] = 6
     plt.rcParams['xtick.color'] = 'black'
     plt.rcParams['ytick.color'] = 'black'
+<<<<<<< HEAD
 
     epsilon = 1e-8
+=======
+>>>>>>> 25c57ec (more work on the N-KC)
     return (
         FontProperties,
         beta,
@@ -81,9 +84,19 @@ def F_R(x, a, b):
     return 1 - (1 - x**a)**b
 
 
+<<<<<<< HEAD
 @app.function
 def f_R(x, a, b):
     return a * b * (x ** (a - 1)) * (1 - x**a)**(b - 1)
+=======
+@app.cell
+def _(np):
+    def f_R(x, a, b):
+        if np.any(x >= 1.0) or np.any(x <= 0.0):
+            print("⚠️ Problem x values detected:", x[x >= 1.0], x[x <= 0.0])
+        return a * b * (x ** (a - 1)) * (1 - x**a)**(b - 1)
+    return (f_R,)
+>>>>>>> 25c57ec (more work on the N-KC)
 
 
 @app.cell
@@ -155,9 +168,18 @@ def _(epsilon, np):
 
 
 @app.cell
+<<<<<<< HEAD
 def _(Q_Y, f_T, uQ_Y):
     def n_kc(x, a, b, gamma, mu, sigma):
         return f_T(Q_Y(F_R(x, a, b), gamma, (mu - 5 * sigma), (mu + 5 * sigma)), mu, sigma) * uQ_Y(F_R(x, a, b), gamma) * f_R(x, a, b)
+=======
+def _(Q_Y, f_R, f_T, np, uQ_Y):
+    def n_kc(x, a, b, gamma, mu, sigma):
+        result = f_T(Q_Y(F_R(x, a, b), gamma), mu, sigma) * uQ_Y(F_R(x, a, b), gamma) * f_R(x, a, b)
+        if np.any(x >= 1.0) or np.any(x <= 0.0):
+            print("⚠️ Problem x values detected:", x[x >= 1.0], x[x <= 0.0])
+        return result
+>>>>>>> 25c57ec (more work on the N-KC)
     return (n_kc,)
 
 
@@ -175,14 +197,23 @@ def _(mo):
 
 
 @app.cell
+<<<<<<< HEAD
 def _(differential_evolution, epsilon, n_kc, np):
+=======
+def _(differential_evolution, n_kc, np):
+    epsilon = 1e-8
+
+>>>>>>> 25c57ec (more work on the N-KC)
     def calc_params_NKC(data):
         def ll_nkc(params):
             a, b, gamma, mu, sigma = params
             nkc_vals = n_kc(data, a, b, gamma, mu, sigma)
+<<<<<<< HEAD
             if np.any(nkc_vals == 0):
                 print('Params when nkc_vals == 0', params)
             nkc_vals[nkc_vals <= 0] = epsilon
+=======
+>>>>>>> 25c57ec (more work on the N-KC)
             return -np.sum(np.log(nkc_vals))
 
         bounds = [
@@ -345,7 +376,11 @@ def _(mo):
 
 @app.cell
 def _(calc_params_NKC, epsilon, norm, np, skewnorm):
+<<<<<<< HEAD
     x = np.linspace(epsilon,1 - epsilon, 10000)
+=======
+    x = np.linspace(1e-12,1 - 1e-12, 1000000)
+>>>>>>> 25c57ec (more work on the N-KC)
 
     norm1 = norm.rvs(loc=0, scale=1, size=1000)
     norm2 = norm.rvs(loc=0, scale=1.5, size=1000)
@@ -532,6 +567,7 @@ def _(calc_params_NKC, calc_params_beta, calc_params_ncbl, df, epsilon):
 
 
 @app.cell
+<<<<<<< HEAD
 def _(Q_Y, f_T, n_kc, np, plt, x):
     a = 0.18612344
     b = 0.28285843
@@ -564,6 +600,8 @@ def _(Q_Y, gamma3, mu, sigma):
 
 
 @app.cell
+=======
+>>>>>>> 25c57ec (more work on the N-KC)
 def _(np, raw_NO2, scaled_NO2):
     idxs = np.where(scaled_NO2 == 1.0)
     print("Indexes where scaled == 1.0:", idxs)
