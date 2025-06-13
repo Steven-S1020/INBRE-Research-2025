@@ -33,6 +33,31 @@ def _():
     greenc = '#88bf9b'
     bluec = '#3c91e6'
     pinkc = '#ffa0ac'
+<<<<<<< HEAD
+=======
+
+    sns.set_theme(style='white', context='talk', font_scale=1.25, rc={
+        'axes.edgecolor': 'black',
+        'grid.color': 'silver'
+    })
+    plt.rcParams['figure.figsize'] = (10, 10)
+    plt.rcParams['figure.dpi'] = 150
+    plt.rcParams['lines.linewidth'] = 1.5
+    plt.rcParams['axes.labelsize'] = 20
+    plt.rcParams['axes.titlesize'] = 26
+    plt.rcParams['axes.titlepad'] = 20
+    plt.rcParams['xtick.labelsize'] = 18
+    plt.rcParams['ytick.labelsize'] = 18
+    plt.rcParams['xtick.bottom'] = True
+    plt.rcParams['ytick.left'] = True
+    plt.rcParams['xtick.minor.visible'] = True
+    plt.rcParams['ytick.minor.visible'] = True
+    plt.rcParams['xtick.minor.size'] = 6
+    plt.rcParams['ytick.minor.size'] = 6
+    plt.rcParams['xtick.color'] = 'black'
+    plt.rcParams['ytick.color'] = 'black'
+    epsilon = 1e-16
+>>>>>>> 32c3c4a (More work on N_KC)
     return (
         beta,
         bluec,
@@ -61,17 +86,33 @@ def _(mo):
     return
 
 
+<<<<<<< HEAD
 @app.function
 def F_R(x, a, b):
     return 1 - (1 - x**a)**b
 
 
+=======
+>>>>>>> 32c3c4a (More work on N_KC)
 @app.cell
 def _(np):
+    def F_R(x, a, b):
+        return 1 - np.power(1 - np.power(x, a), b)
+    return (F_R,)
+
+
+@app.cell
+def _(epsilon, np):
     def f_R(x, a, b):
+<<<<<<< HEAD
         safe_base = np.maximum(1 - x**a, 1e-12)
         result = safe_base ** (b - 1)
         return a * b * x ** (a - 1) * result
+=======
+        base = 1.0 - np.power(x, a)
+        safe_base = np.maximum(base, epsilon)  # avoid zero or negative due to float error
+        return a * b * np.power(x, a - 1) * np.power(safe_base, b - 1)
+>>>>>>> 32c3c4a (More work on N_KC)
     return (f_R,)
 
 
@@ -83,14 +124,18 @@ def _(mo):
 
 @app.cell
 def _(cauchy):
+<<<<<<< HEAD
     def Q_Y(x, gamma): # Quantile of Cauchy
+=======
+    def Q_Y(x, gamma):  # Quantile of Cauchy
+>>>>>>> 32c3c4a (More work on N_KC)
         return cauchy.ppf(x, scale=gamma)
     return (Q_Y,)
 
 
 @app.cell
 def _(np, pi):
-    def uQ_Y(x, gamma): # Derivative Quantile of Cauchy
+    def uQ_Y(x, gamma):  # Derivative Quantile of Cauchy
         return gamma * (1/(np.cos(pi * (x - 0.5))**2)) * pi
     return (uQ_Y,)
 
@@ -124,14 +169,17 @@ def _(mo):
 @app.cell
 def _(epsilon, np):
     def n_cbl(x, mu, sig, alpha, lamb):
-        f_r = (2 * np.arctanh(1 - 2 * lamb) * (lamb ** x) * ((1 - lamb) ** (1 - x))) / (1 - 2 * lamb)
-        F_r = ((lamb ** x) * ((1 - lamb) ** (1 - x)) + lamb - 1) / ((2 * lamb) - 1)
+        f_r = (2 * np.arctanh(1 - 2 * lamb) * (lamb ** x)
+               * ((1 - lamb) ** (1 - x))) / (1 - 2 * lamb)
+        F_r = ((lamb ** x) * ((1 - lamb) ** (1 - x)) +
+               lamb - 1) / ((2 * lamb) - 1)
         s_r = 1 - F_r
 
         F_r = np.clip(F_r, epsilon, 1 - epsilon)
         s_r = np.clip(s_r, epsilon, 1 - epsilon)
 
-        z = np.exp(-((alpha * np.log(F_r / (1 - F_r)) - mu) ** 2) / (2 * sig ** 2))
+        z = np.exp(-((alpha * np.log(F_r / (1 - F_r)) - mu)
+                   ** 2) / (2 * sig ** 2))
 
         numerator = z * alpha * (s_r + F_r) * f_r
         denominator = np.sqrt(2 * np.pi) * s_r * F_r * sig
@@ -142,6 +190,7 @@ def _(epsilon, np):
 
 
 @app.cell
+<<<<<<< HEAD
 def _(Q_Y, f_R, f_T, uQ_Y):
     def n_kc(x, a, b, gamma, mu, sigma):
         return f_T(Q_Y(F_R(x, a, b), gamma), mu, sigma) * uQ_Y(F_R(x, a, b), gamma) * f_R(x, a, b)
@@ -153,6 +202,19 @@ def _(F_T, Q_Y):
     def N_KC(x, a, b, gamma, mu, sigma):
         return F_T(Q_Y(F_R(x, a, b), gamma), mu, sigma)
     return (N_KC,)
+=======
+def _(F_R, F_T, Q_Y):
+    def N_KC(x, a, b, gamma, mu, sigma):
+        return F_T(Q_Y(F_R(x, a, b), gamma), mu, sigma)
+    return (N_KC,)
+
+
+@app.cell
+def _(F_R, Q_Y, f_R, f_T, uQ_Y):
+    def n_kc(x, a, b, gamma, mu, sigma):
+        return f_T(Q_Y(F_R(x, a, b), gamma), mu, sigma) * uQ_Y(F_R(x, a, b), gamma) * f_R(x, a, b)
+    return (n_kc,)
+>>>>>>> 32c3c4a (More work on N_KC)
 
 
 @app.cell
@@ -162,6 +224,7 @@ def _(mo):
 
 
 @app.cell
+<<<<<<< HEAD
 def _(differential_evolution, n_kc, np):
     epsilon = 1e-16
 
@@ -177,6 +240,22 @@ def _(differential_evolution, n_kc, np):
             (1e-12, 30),     # lam
             (-30, 30),       # mu
             (1e-12, 30)      # sigma
+=======
+def _(differential_evolution, epsilon, n_kc, np):
+    def calc_params_NKC(data):
+        def ll_nkc(params):
+            a, b, gamma, mu, sigma = params
+            y = n_kc(data, a, b, gamma, mu, sigma)
+            y[y<= 0] = epsilon
+            return -np.sum(np.log(y)) 
+
+        bounds = [
+            (epsilon, 2.5),    # a
+            (epsilon, 2.5),    # b
+            (epsilon, 30),     # lam
+            (-75, 75),         # mu
+            (epsilon, 30)      # sigma
+>>>>>>> 32c3c4a (More work on N_KC)
         ]
 
         # Run global optimization
@@ -184,14 +263,20 @@ def _(differential_evolution, n_kc, np):
             ll_nkc,
             bounds,
             strategy="best1bin",     # Good default mutation strategy
-            maxiter=1000,            # 🚀 Increase number of generations (default is 100)
-            popsize=20,              # 🚀 Increase number of individuals per generation (default is 15)
-            mutation=(0.5, 1.0),     # Mutation strength (can widen range to explore more)
-            recombination=0.7,       # Crossover probability (how much mixing between solutions)
+            # 🚀 Increase number of generations (default is 100)
+            maxiter=1000,
+            # 🚀 Increase number of individuals per generation (default is 15)
+            popsize=20,
+            # Mutation strength (can widen range to explore more)
+            mutation=(0.5, 1.0),
+            # Crossover probability (how much mixing between solutions)
+            recombination=0.7,
             polish=True,             # Fine-tune best solution with L-BFGS-B at the end
-            tol=1e-4,                # Convergence tolerance (lower = more precise)
-            updating="immediate",   # Update as soon as better solution is found (more aggressive)
-            )
+            # Convergence tolerance (lower = more precise)
+            tol=epsilon,
+            # Update as soon as better solution is found (more aggressive)
+            updating="immediate",
+        )
         return result.x, -result.fun
     return calc_params_NKC, epsilon
 
@@ -201,8 +286,14 @@ def _(differential_evolution, epsilon, gamma, np):
     def calc_params_gamma(data):
         def ll_gamma(params):
             shape, scale = params
+<<<<<<< HEAD
             pdf_vals = gamma.pdf(data, a=shape, scale=scale) + epsilon
             return -np.sum(np.log(pdf_vals))
+=======
+            y = gamma.pdf(data, a=shape, scale=scale)
+            y[y<= 0] = epsilon
+            return -np.sum(np.log(y))
+>>>>>>> 32c3c4a (More work on N_KC)
 
         bounds = [
             (1e-5, 100),   # shape
@@ -220,7 +311,7 @@ def _(differential_evolution, epsilon, gamma, np):
             polish=True,
             tol=1e-4,
             updating="immediate",
-            )
+        )
         return result.x, -result.fun
     return
 
@@ -230,12 +321,18 @@ def _(beta, differential_evolution, epsilon, np):
     def calc_params_beta(data):
         def ll_beta(params):
             a, b = params
+<<<<<<< HEAD
             pdf_vals = beta.pdf(data, a, b) + epsilon
             return -np.sum(np.log(pdf_vals))
+=======
+            y = beta.pdf(data, a, b)
+            y[y<= 0] = epsilon
+            return -np.sum(np.log(y))
+>>>>>>> 32c3c4a (More work on N_KC)
 
         bounds = [
-            (1e-5, 100),  # a
-            (1e-5, 100),  # b
+            (1, 5),  # a
+            (1, 5),  # b
         ]
 
         result = differential_evolution(
@@ -247,9 +344,9 @@ def _(beta, differential_evolution, epsilon, np):
             mutation=(0.5, 1.0),
             recombination=0.7,
             polish=True,
-            tol=1e-4,
+            tol=1e-8,
             updating="immediate",
-            )
+        )
         return result.x, -result.fun
     return (calc_params_beta,)
 
@@ -259,14 +356,20 @@ def _(differential_evolution, epsilon, n_cbl, np):
     def calc_params_ncbl(data):
         def ll_ncbl(params):
             mu, sig, alpha, lamb = params
+<<<<<<< HEAD
             pdf_vals = n_cbl(data, mu, sig, alpha, lamb) + epsilon
             return -np.sum(np.log(pdf_vals))
+=======
+            y = n_cbl(data, mu, sig, alpha, lamb)
+            y[y<= 0] = epsilon
+            return -np.sum(np.log(y))
+>>>>>>> 32c3c4a (More work on N_KC)
 
         bounds = [
-            (-100, 100),     # mu
-            (1e-5, 100),     # sigma
-            (1e-5, 100),     # alpha
-            (1e-5, 1 - 1e-5) # lambda
+            (-5, 5),     # mu
+            (epsilon, 5),     # sigma
+            (epsilon, 5),     # alpha
+            (epsilon, 1 - epsilon)  # lambda
         ]
 
         result = differential_evolution(
@@ -280,18 +383,83 @@ def _(differential_evolution, epsilon, n_cbl, np):
             polish=True,
             tol=1e-4,
             updating="immediate",
-            )
+        )
         return result.x, -result.fun
     return (calc_params_ncbl,)
 
 
+@app.function
+def AIC(k, ll):
+    # k    : Number of Parameters
+    # ll   : Log-Likelihood Value
+    return (2 * k) - (2 * ll)
+
+
+@app.cell
+def _(np):
+    def BIC(k, n, ll):
+        # k    : Number of Parameters
+        # n    : Number of Data Points
+        # ll   : Log-Likelihood Value
+        return (k * np.log(n)) - (2 * ll)
+    return (BIC,)
+
+
 @app.cell
 def _(mo):
+<<<<<<< HEAD
+=======
+    mo.md(r"""## Helper Functions""")
+    return
+
+
+@app.cell
+def _():
+    nkc_param_names = ['a', 'b', '\\lambda', '\\mu', '\\sigma']
+    ncbl_param_names = ['\\mu', '\\sigma', '\\alpha', '\\lambda']
+    beta_param_names = ['\\alpha', '\\beta']
+
+    def format_label(params, label="", precision=2, param_width=10, sci_threshold=1e4, small_threshold=1e-3):
+        """
+        Create a one-line label string with fixed-width aligned param blocks.
+
+        Parameters:
+            params       : dict of {name: value}
+            label        : string prefix (e.g., 'norm1')
+            precision    : decimal places for float values
+            param_width  : total width of each 'key=value' string
+                          (spaces are added with .ljust())
+        """
+        if not isinstance(params, dict):
+            raise TypeError('params must be a dict')
+
+        param_strs = []
+        for k, v in params.items():
+            if abs(v) >= sci_threshold or (abs(v) < small_threshold and v != 0):
+                value_str = f"{v:.{precision}e}"
+                raw = f"${k}={value_str}$"
+                n = (param_width - len(raw) - 1) if '\\' not in k else (param_width - (len(raw) - len(k)) - 1)
+                padded = raw + (' ' * max(0, n))
+            else:
+                value_str = f"{v:.{precision}f}"
+                raw = f"${k}={value_str}$"
+                n = (param_width - len(raw)) if '\\' not in k else (param_width - (len(raw) - len(k)))
+                padded = raw + (' ' * max(0, n))
+
+            param_strs.append(padded)
+        return f"{label}  " + "".join(param_strs)
+    return beta_param_names, format_label, ncbl_param_names, nkc_param_names
+
+
+@app.cell
+def _(mo):
+>>>>>>> 32c3c4a (More work on N_KC)
     mo.md(r"""## PDF & CDF of $\,N\!-\!K\{C\}\,$""")
     return
 
 
 @app.cell
+<<<<<<< HEAD
 def _(calc_params_NKC, norm, np, skewnorm):
     x = np.linspace(1e-12,1 - 1e-12, 1000000)
 
@@ -318,9 +486,36 @@ def _(calc_params_NKC, norm, np, skewnorm):
 
     bimod_params, bimod_ll = calc_params_NKC(bimod)
     print(f"bimod:\n  Params: {bimod_params}\n  Log-Likelihood: {bimod_ll:.4f}")
+=======
+def _(calc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
+    x = np.linspace(epsilon, 1 - epsilon, 10000)
+
+    norm1 = np.clip(norm.rvs(loc=0.5, scale=0.09, size=10000), epsilon, 1 - epsilon)
+    norm2 = np.clip(norm.rvs(loc=0.5, scale=0.15, size=10000), epsilon, 1 - epsilon)
+    rskew = np.clip(skewnorm.rvs(a=25, loc=0.1, scale=0.25, size=10000), epsilon, 1 - epsilon)
+    lskew = np.clip(skewnorm.rvs(a=-25, loc=0.9, scale=0.25, size=10000), epsilon, 1 - epsilon)
+    bimod = np.clip(np.concatenate([norm.rvs(loc=0.3, scale=0.065, size=5000), norm.rvs(loc=0.7, scale=0.065, size=5000)]), epsilon, 1 - epsilon)
+
+    norm1_params, norm1_ll = calc_params_NKC(norm1)
+    norm2_params, norm2_ll = calc_params_NKC(norm2)
+    rskew_params, rskew_ll = calc_params_NKC(rskew)
+    lskew_params, lskew_ll = calc_params_NKC(lskew)
+    bimod_params, bimod_ll = calc_params_NKC(bimod)
+
+    nkc_norm1 = n_kc(x, *norm1_params)
+    nkc_norm2 = n_kc(x, *norm2_params)
+    nkc_rskew = n_kc(x, *rskew_params)
+    nkc_lskew = n_kc(x, *lskew_params)
+    nkc_bimod = n_kc(x, *bimod_params)
+>>>>>>> 32c3c4a (More work on N_KC)
     return (
         bimod_params,
         lskew_params,
+        nkc_bimod,
+        nkc_lskew,
+        nkc_norm1,
+        nkc_norm2,
+        nkc_rskew,
         norm1_params,
         norm2_params,
         rskew_params,
@@ -330,11 +525,11 @@ def _(calc_params_NKC, norm, np, skewnorm):
 
 @app.cell
 def _(mo):
-    mo_a = mo.ui.slider(start=0.001, stop=2, step=0.001, value=1.27, label=fr'$a$')
-    mo_b = mo.ui.slider(start=0.001, stop=10, step=0.001, value=1.22, label=fr'$b$')
-    mo_gamma = mo.ui.slider(start=0.1, stop=100, step=0.1, value=58.6, label=fr'$\gamma$')
-    mo_mu = mo.ui.slider(start=-100, stop=100, step=0.001, value=-2, label=fr'$\mu$')
-    mo_sigma = mo.ui.slider(start=0.001, stop=100, step=0.001, value=66.9, label=fr'$\sigma$')
+    mo_a = mo.ui.number(start=0.001, stop=2.5, step=0.00001, value=0.0011, label=fr'$a$')
+    mo_b = mo.ui.number(start=0.00000001, stop=2.5, step=0.00001, value=.000755, label=fr'$b$')
+    mo_gamma = mo.ui.number(start=0.1, stop=30, step=0.1, value=1.21, label=fr'$\gamma$')
+    mo_mu = mo.ui.number(start=-80, stop=30, step=0.001, value=-71.644, label=fr'$\mu$')
+    mo_sigma = mo.ui.number(start=0.001, stop=30,step=0.001, value=3.014, label=fr'$\sigma$')
 
     mo.hstack([mo_a, mo_b, mo_gamma, mo_mu, mo_sigma], justify='center', align='center', gap=5)
     return
@@ -348,7 +543,16 @@ def _(
     greenc,
     lskew_params,
     mo,
+<<<<<<< HEAD
     n_kc,
+=======
+    nkc_bimod,
+    nkc_lskew,
+    nkc_norm1,
+    nkc_norm2,
+    nkc_param_names,
+    nkc_rskew,
+>>>>>>> 32c3c4a (More work on N_KC)
     norm1_params,
     norm2_params,
     pinkc,
@@ -357,6 +561,7 @@ def _(
     rskew_params,
     x,
 ):
+<<<<<<< HEAD
 
     fig1, ax1 = plt.subplots()
 
@@ -374,12 +579,22 @@ def _(
 
     #sns.histplot(bimod, bins=70, stat='density', ax=ax1, color=grayc)
     #ax1.plot(x, n_kc(x, mo_a.value, mo_b.value, mo_gamma.value, mo_mu.value, mo_sigma.value), lw=3)
+=======
+    fig1, ax1 = plt.subplots(dpi=115)
+
+    label_norm1 = format_label(dict(zip(nkc_param_names, norm1_params)), label='norm1', param_width=15)
+    label_norm2 = format_label(dict(zip(nkc_param_names, norm2_params)), label='norm2', param_width=15)
+    label_rskew = format_label(dict(zip(nkc_param_names, rskew_params)), label='rskew', param_width=15)
+    label_lskew = format_label(dict(zip(nkc_param_names, lskew_params)), label='lskew', param_width=15)
+    label_bimod = format_label(dict(zip(nkc_param_names, bimod_params)), label='bimod', param_width=15)
+>>>>>>> 32c3c4a (More work on N_KC)
 
     title = r'$\,N\!-\!K\{C\}\,$ PDF'
     ax1.set_title(title)
     ax1.set_xlabel(xlabel=r'$X$ Value')
     ax1.set_ylabel('Probability')
 
+<<<<<<< HEAD
     ax1.set_xlim(0,1)
     ax1.set_ylim(0,5)
     ax1.grid()
@@ -392,6 +607,28 @@ def _(
         border_radius="8px"
     )
     return nkc_bimod, nkc_lskew, nkc_norm1, nkc_norm2, nkc_rskew, title
+=======
+    ax1.set_xlim(0, 1)
+    ax1.set_ylim(0, 5.6)
+    ax1.set_xlabel(xlabel=r'$X$ Value')
+    ax1.set_ylabel('Density')
+
+    ax1.set_title(r'$\,N\!-\!K\{C\}\,$ PDF')
+    ax1.legend(prop=FontProperties(family='monospace', size=10))
+    ax1.grid()
+    mo.as_html(fig1).center()
+    return
+
+
+@app.cell
+def _(nkc_bimod, nkc_lskew, nkc_norm1, nkc_norm2, nkc_rskew, trapezoid, x):
+    print('Area under nkc_norm1:', trapezoid(nkc_norm1, x))
+    print('Area under nkc_norm2:', trapezoid(nkc_norm2, x))
+    print('Area under nkc_lskew:', trapezoid(nkc_lskew, x))
+    print('Area under nkc_rskew:', trapezoid(nkc_rskew, x))
+    print('Area under nkc_bimod:', trapezoid(nkc_bimod, x))
+    return
+>>>>>>> 32c3c4a (More work on N_KC)
 
 
 @app.cell
@@ -410,22 +647,28 @@ def _(
     rskew_params,
     x,
 ):
-    fig2, ax2 = plt.subplots()
+    fig2, ax2 = plt.subplots(dpi=115)
     NKC_norm1 = N_KC(x, *norm1_params)
     NKC_norm2 = N_KC(x, *norm2_params)
     NKC_rskew = N_KC(x, *rskew_params)
     NKC_lskew = N_KC(x, *lskew_params)
     NKC_bimod = N_KC(x, *bimod_params)
 
-    ax2.plot(x, NKC_norm1, label='norm1 CDF', color=redc, lw=2)
-    ax2.plot(x, NKC_norm2, label='norm2 CDF', color=grayc, lw=2)
-    ax2.plot(x, NKC_rskew, label='rskew CDF', color=greenc, lw=2)
-    ax2.plot(x, NKC_lskew, label='lskew CDF', color=bluec, lw=2)
-    ax2.plot(x, NKC_bimod, label='bimod CDF', color=pinkc, lw=2)
+    ax2.plot(x, NKC_norm1, label='norm1', color=redc, lw=2)
+    ax2.plot(x, NKC_norm2, label='norm2', color=grayc, lw=2)
+    ax2.plot(x, NKC_rskew, label='rskew', color=greenc, lw=2)
+    ax2.plot(x, NKC_lskew, label='lskew', color=bluec, lw=2)
+    ax2.plot(x, NKC_bimod, label='bimod', color=pinkc, lw=2)
 
+<<<<<<< HEAD
     title2 = r'$\,N\!-\!K\{C\}\,$ CDF'
     ax2.set_title(title2)
     ax2.set_xlabel(xlabel=r'$X$ Value')
+=======
+    ax2.set_xlim(0, 1)
+    ax2.set_ylim(0, 1)
+    ax2.set_xlabel(r'$X$ Value')
+>>>>>>> 32c3c4a (More work on N_KC)
     ax2.set_ylabel('Probability')
 
     ax2.legend()
@@ -437,6 +680,7 @@ def _(
 
 
 @app.cell
+<<<<<<< HEAD
 def _(nkc_bimod, nkc_lskew, nkc_norm1, nkc_norm2, nkc_rskew, trapezoid, x):
     nkc_norm1[nkc_norm1 <= 0] = 1e-8
     print('Area under nkc_norm1:', trapezoid(nkc_norm1, x))
@@ -456,6 +700,8 @@ def _(nkc_bimod, nkc_lskew, nkc_norm1, nkc_norm2, nkc_rskew, trapezoid, x):
 
 
 @app.cell
+=======
+>>>>>>> 32c3c4a (More work on N_KC)
 def _(mo):
     mo.md(r"""## Data Fitting""")
     return
@@ -463,7 +709,8 @@ def _(mo):
 
 @app.cell
 def _(pd):
-    df = pd.read_csv('./data/Global Air Quality (2024) - 6 Cities/New_York_Air_Quality.csv')
+    df = pd.read_csv(
+        './data/Global Air Quality (2024) - 6 Cities/New_York_Air_Quality.csv')
     df.head()
     return (df,)
 
@@ -476,8 +723,11 @@ def _(calc_params_NKC, calc_params_beta, calc_params_ncbl, df, epsilon):
     scaled_NO2[scaled_NO2 >= 1.0] = 1.0 - epsilon
 
     nkc_ny_no2_params, nkc_ny_no2_ll = calc_params_NKC(scaled_NO2)
+    print('finished NKC')
     beta_ny_no2_params, beta_ny_no2_ll = calc_params_beta(scaled_NO2)
+    print('finished Beta')
     ncbl_ny_no2_params, ncbl_ny_no2_ll = calc_params_ncbl(scaled_NO2)
+    print('finished NCBL')
     return (
         beta_ny_no2_ll,
         beta_ny_no2_params,
@@ -510,9 +760,10 @@ def _(
     title,
     x,
 ):
-    fig3, ax3 = plt.subplots()
+    fig3, ax3 = plt.subplots(dpi=115)
     sns.histplot(scaled_NO2, bins=70, stat='density', ax=ax3, color=grayc)
 
+<<<<<<< HEAD
     label_nkc = fr'$\,N\!-\!K\{{C\}}\,$  logL={nkc_ny_no2_ll:.2f},  ' \
             fr'$\alpha={nkc_ny_no2_params[0]:.2f}$, ' \
             fr'$\beta={nkc_ny_no2_params[1]:.2f}$, ' \
@@ -528,20 +779,57 @@ def _(
                  fr'$\alpha={ncbl_ny_no2_params[2]:.2f}$, ' \
                  fr'$\lambda={ncbl_ny_no2_params[3]:.2f}$'
 
+=======
+    label_nkc = format_label(dict(zip(nkc_param_names, nkc_ny_no2_params)), label=r'$\,N\!-\!K\{C\}\,$  ')
+    label_beta = format_label(dict(zip(beta_param_names, beta_ny_no2_params)), label='Beta           ')
+    label_ncbl = format_label(dict(zip(ncbl_param_names, ncbl_ny_no2_params)), label=r'$\,N\!-\!CB\{L\}\,$')
+>>>>>>> 32c3c4a (More work on N_KC)
 
     ax3.plot(x, n_kc(x, *nkc_ny_no2_params), label=label_nkc, color=redc, lw=2)
     ax3.plot(x, beta.pdf(x, *beta_ny_no2_params), label=label_beta, color=bluec, lw=2, ls='--')
     ax3.plot(x, n_cbl(x, *ncbl_ny_no2_params), label=label_ncbl, color=pinkc, lw=2, ls='--')
 
+<<<<<<< HEAD
     title3 = r'$\,N\!-\!K\{C\}\,$ fit to Air Polution Data'
     ax3.set_title(title, fontsize=28, pad=20)
     ax3.set_xlabel(xlabel=r'$X$ Value', fontsize=28, labelpad=20)
     ax3.set_ylabel('Density', fontsize=28, labelpad=20)
     ax3.set_xlim(0,1)
+=======
+    ax3.set_xlim(0, 1)
+    ax3.set_ylim(0, 3.6)
+    ax3.set_xlabel(r'$X$ Value')
+    ax3.set_ylabel('Density')
+
+    ax3.set_title(r'$\,N\!-\!K\{C\}\,$ fit to Air Polution Data')
+    ax3.legend(prop=FontProperties(family='monospace', size=12))
+>>>>>>> 32c3c4a (More work on N_KC)
     ax3.grid()
     ax3.legend(fontsize=16)
     ax3.tick_params(labelsize=20)
     fig3.gca()
+    return
+
+
+@app.cell
+def _(BIC, ncbl_ny_no2_ll, nkc_ny_no2_ll, np, raw_NO2):
+    AIC_nkc = (2 * 5) - (2 * nkc_ny_no2_ll)
+    AIC_ncbl = (2 * 4) - (2 * ncbl_ny_no2_ll)
+
+    BIC_nkc = (5 * np.log(raw_NO2.size)) - (2 * nkc_ny_no2_ll)
+    BIC_ncbl = (4 * np.log(raw_NO2.size)) - (2 * ncbl_ny_no2_ll)
+
+    print('AIC Values:')
+    print(f'NKC: {AIC(5, nkc_ny_no2_ll):.2f}')
+    print(f'NCBL: {AIC(4, ncbl_ny_no2_ll):.2f}')
+    print('BIC Values:')
+    print(f'NKC: {BIC(5, raw_NO2.size, nkc_ny_no2_ll):.2f}')
+    print(f'NCBL: {BIC(4, raw_NO2.size, ncbl_ny_no2_ll):.2f}')
+    return
+
+
+@app.cell
+def _():
     return
 
 

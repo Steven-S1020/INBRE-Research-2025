@@ -226,7 +226,7 @@ def _(differential_evolution, np, w_kc):
         print("Best log-likelihood:", -result.fun)
         print("Best parameters:", result.x)
         return result.x
-    return (calc_params_WKC,)
+    return
 
 
 @app.cell
@@ -264,7 +264,7 @@ def _(differential_evolution, e_kc, np):
         print("Best log-likelihood:", -result.fun)
         print("Best parameters:", result.x)
         return result.x
-    return (calc_params_EKC,)
+    return
 
 
 @app.cell
@@ -303,7 +303,7 @@ def _(differential_evolution, n_kc, np):
         print("Best log-likelihood:", -result.fun)
         print("Best parameters:", result.x)
         return result.x
-    return
+    return (calc_params_NKC,)
 
 
 @app.cell
@@ -382,7 +382,7 @@ def _(datag, differential_evolution, gamma, np):
 
 
 @app.cell
-def _(calc_params_EKC, calc_params_WKC, norm, np, skewnorm):
+def _(calc_params_NKC, norm, np, skewnorm):
     x = np.linspace(1e-12,1 - 1e-12, 100000)
 
     norm1 = np.clip(norm.rvs(loc=0.5, scale=0.1, size=1000), 1e-12, 1 - 1e-12)
@@ -394,11 +394,11 @@ def _(calc_params_EKC, calc_params_WKC, norm, np, skewnorm):
         norm.rvs(loc=0.7, scale=0.05, size=500)
     ]), 1e-12, 1 - 1e-12)
 
-    norm1_params = calc_params_WKC(norm1)
-    norm2_params = calc_params_EKC(norm2)
-    rskew_params = calc_params_WKC(rskew)
-    lskew_params = calc_params_WKC(lskew)
-    bimod_params = calc_params_WKC(bimod)
+    norm1_params = calc_params_NKC(norm1)
+    norm2_params = calc_params_NKC(norm2)
+    rskew_params = calc_params_NKC(rskew)
+    lskew_params = calc_params_NKC(lskew)
+    bimod_params = calc_params_NKC(bimod)
     return (
         bimod_params,
         lskew_params,
@@ -430,15 +430,14 @@ def _(mo):
 @app.cell
 def _(
     bimod_params,
-    e_kc,
     lskew_params,
+    n_kc,
     norm1_params,
     norm2,
     norm2_params,
     plt,
     rskew_params,
     sns,
-    w_kc,
     x,
 ):
     redc = '#a4031f'
@@ -449,11 +448,11 @@ def _(
 
     fig, ax = plt.subplots()
 
-    ax.plot(x, w_kc(x, *norm1_params), label='norm1', color=redc, lw=2)
-    ax.plot(x, e_kc(x, *norm2_params), label='norm2', color=grayc, lw=2)
-    ax.plot(x, w_kc(x, *rskew_params),  label='rskew',  color=greenc, lw=2)
-    ax.plot(x, w_kc(x, *lskew_params), label='lskew',  color=bluec, lw=2)
-    ax.plot(x, w_kc(x, *bimod_params), label='bimod',  color=pinkc, lw=2)
+    ax.plot(x, n_kc(x, *norm1_params), label='norm1', color=redc, lw=2)
+    ax.plot(x, n_kc(x, *norm2_params), label='norm2', color=grayc, lw=2)
+    ax.plot(x, n_kc(x, *rskew_params),  label='rskew',  color=greenc, lw=2)
+    ax.plot(x, n_kc(x, *lskew_params), label='lskew',  color=bluec, lw=2)
+    ax.plot(x, n_kc(x, *bimod_params), label='bimod',  color=pinkc, lw=2)
 
     sns.histplot(norm2, bins=70, stat='density', ax=ax, color=grayc)
 
@@ -470,6 +469,12 @@ def _(
     ax.grid()
     ax.tick_params(labelsize=20)
     fig.gca()
+    return
+
+
+@app.cell
+def _(norm1_params):
+    print(norm1_params)
     return
 
 
