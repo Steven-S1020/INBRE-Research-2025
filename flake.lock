@@ -437,11 +437,11 @@
         "zen-browser": "zen-browser"
       },
       "locked": {
-        "lastModified": 1749471899,
-        "narHash": "sha256-yPK1mDbS7Ar8tKN3M6d4w089m3QGtdw+3j+xqVntwfo=",
+        "lastModified": 1750010704,
+        "narHash": "sha256-egfNEPi5ozDYgLIoQmdR66ph8tvvR8jcQBoiLf9e5G8=",
         "owner": "Steven-S1020",
         "repo": "Nixos-Configuration",
-        "rev": "087038a1d298ee9bc14aea4fcd6a622336a9fb29",
+        "rev": "489011754fbad4027b693d56da51164253e081ca",
         "type": "github"
       },
       "original": {

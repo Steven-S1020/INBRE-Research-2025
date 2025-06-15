@@ -9,6 +9,7 @@ def _():
     import numpy as np
     import marimo as mo
     import pandas as pd
+    import jinja2
     import seaborn as sns
     import matplotlib.pyplot as plt
     from matplotlib.font_manager import FontProperties
@@ -18,19 +19,6 @@ def _():
     from scipy.stats import norm, cauchy, skewnorm, beta, gamma
     from scipy.optimize import differential_evolution
 
-    sns.set_theme(
-        style="white",
-        context="talk",
-        font_scale=0.9,
-        rc={"axes.edgecolor": "black", "grid.color": "silver"},
-    )
-    plt.rcParams["figure.figsize"] = (3, 3)
-    plt.rcParams["figure.dpi"] = 85
-    plt.rcParams["lines.linewidth"] = 1.5
-    plt.rcParams["axes.labelsize"] = 12
-    plt.rcParams["axes.titlesize"] = 14
-    plt.rcParams["xtick.labelsize"] = 10
-    plt.rcParams["ytick.labelsize"] = 10
     redc = "#a4031f"
     grayc = "#dddde3"
     greenc = "#88bf9b"
@@ -44,7 +32,7 @@ def _():
         rc={"axes.edgecolor": "black", "grid.color": "silver"},
     )
     plt.rcParams["figure.figsize"] = (10, 10)
-    plt.rcParams["figure.dpi"] = 150
+    plt.rcParams["figure.dpi"] = 115
     plt.rcParams["lines.linewidth"] = 1.5
     plt.rcParams["axes.labelsize"] = 20
     plt.rcParams["axes.titlesize"] = 26
@@ -323,19 +311,25 @@ def _(differential_evolution, epsilon, n_cbl, np):
 
 
 @app.function
-def AIC(k, ll):
+def AIC(k, ll, precision=None):
     # k    : Number of Parameters
     # ll   : Log-Likelihood Value
-    return (2 * k) - (2 * ll)
+    if precision is None:
+        return (2 * k) - (2 * ll)
+    else:
+        return round((2 * k) - (2 * ll), precision)
 
 
 @app.cell
 def _(np):
-    def BIC(k, n, ll):
+    def BIC(k, n, ll, precision=None):
         # k    : Number of Parameters
         # n    : Number of Data Points
         # ll   : Log-Likelihood Value
-        return (k * np.log(n)) - (2 * ll)
+        if precision is None:
+            return (k * np.log(n)) - (2 * ll)
+        else:
+            return round(((k * np.log(n)) - (2 * ll)), precision)
     return (BIC,)
 
 
@@ -509,7 +503,7 @@ def _(
     rskew_params,
     x,
 ):
-    fig1, ax1 = plt.subplots(dpi=115)
+    fig1, ax1 = plt.subplots()
 
     label_norm1 = format_label(
         dict(zip(nkc_param_names, norm1_params)), label="norm1", param_width=15
@@ -572,7 +566,7 @@ def _(
     rskew_params,
     x,
 ):
-    fig2, ax2 = plt.subplots(dpi=115)
+    fig2, ax2 = plt.subplots()
     NKC_norm1 = N_KC(x, *norm1_params)
     NKC_norm2 = N_KC(x, *norm2_params)
     NKC_rskew = N_KC(x, *rskew_params)
@@ -708,19 +702,19 @@ def _(
     result_data = {
         "Distributions": ["NKC", "NCBL", "Beta"],
         "AIC": [
-            AIC(5, nkc_ny_no2_ll),
-            AIC(4, ncbl_ny_no2_ll),
-            AIC(2, beta_ny_no2_ll),
+            AIC(5, nkc_ny_no2_ll, precision=2),
+            AIC(4, ncbl_ny_no2_ll, precision=2),
+            AIC(2, beta_ny_no2_ll, precision=2),
         ],
         "BIC": [
-            BIC(5, raw_NO2.size, nkc_ny_no2_ll),
-            BIC(4, raw_NO2.size, ncbl_ny_no2_ll),
-            BIC(2, raw_NO2.size, beta_ny_no2_ll),
+            BIC(5, raw_NO2.size, nkc_ny_no2_ll, precision=2),
+            BIC(4, raw_NO2.size, ncbl_ny_no2_ll, precision=2),
+            BIC(2, raw_NO2.size, beta_ny_no2_ll, precision=2),
         ],
     }
     df_res = pd.DataFrame(result_data)
 
-    mo.hstack([mo.as_html(fig3), mo.ui.table(df_res)], justify='center')
+    mo.hstack([mo.as_html(fig3), mo.as_html(df_res).style(width="800px")], justify='center', gap=5)
     return
 
 
