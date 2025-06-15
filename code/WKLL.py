@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.15"
+__generated_with = "0.13.6"
 app = marimo.App(width="medium")
 
 
@@ -24,14 +24,13 @@ def _():
     plt.rcParams['figure.figsize']=(10,8)
     plt.rcParams['figure.dpi'] = 85
 
-    epsilon = 1e-12
+    epsilon = 1e-16
 
 
     #Thank you Steven Stokes!
     return (
         differential_evolution,
         epsilon,
-        expon,
         mo,
         norm,
         np,
@@ -50,14 +49,23 @@ def _(mo):
     return
 
 
-@app.function
-def FR(x, a, b):  # Safe Gamma-like CDF
-    return 1 - (1 - x**a)**b
+@app.cell
+def _(epsilon, np):
+    def FR(x, a, b):  # Safe Gamma-like CDF
+        result = 1 - np.power(1 - np.power(x, a), b)
+        result[result <= 0] = epsilon
+        result[result >= 1] = 1 - epsilon
+        return result
+    return (FR,)
 
 
-@app.function
-def fR(x, a, b):  # Safe Gamma-like PDF
-    return a * b * x**(a - 1) * (1 - x**a)**(b - 1)
+@app.cell
+def _(epsilon, np):
+    def fR(x, a, b):  # Safe Gamma-like PDF
+        base = 1.0 - np.power(x, a)
+        safe_base = np.maximum(base, epsilon)
+        return a * b * np.power(x, a - 1) * np.power(safe_base, b - 1)
+    return (fR,)
 
 
 @app.cell
@@ -68,12 +76,21 @@ def _(mo):
 
 @app.cell
 def _(np):
-    def QY(p, alpha, beta):  # Quantile of the log-logistic
-        p = np.clip(p, 1e-10, 1 - 1e-10)  # avoid 0 or 1
-        q = (p / (1 - p))**(1 / beta)
-        return alpha * q
+    def QY(x, alpha, beta):  # Quantile of the log-logistic
+        z = 1 / beta
+        w = x / (1 - x)
+        return alpha * np.power(w,z)
 
     return (QY,)
+
+
+@app.cell
+def _(np):
+    def dQY(x, alpha, beta):
+        num = alpha * np.power((x / (1 - x)), (1 / beta))
+        den = beta * (x - 1) * x
+        return -(num / den)
+    return (dQY,)
 
 
 @app.cell
@@ -99,7 +116,7 @@ def _(np):
 
         return result
 
-    return (fY,)
+    return
 
 
 @app.cell
@@ -111,18 +128,17 @@ def _(mo):
 @app.cell
 def _(np):
     def FT(x, k, lam):
-        return 1 - np.exp(-(x / lam)**k)
+        return 1 - np.exp(-np.power((x / lam), k))
     return (FT,)
 
 
 @app.cell
-def _(epsilon, np):
+def _(np):
     def fT(x, k, lam):  # PDF of the Weibull distribution
-        x = np.clip(x, epsilon, None)
-        k = max(k, epsilon)
-        lam = max(lam, epsilon)
-        return (k / lam) * (x / lam)**(k - 1) * np.exp(-(x / lam)**k)
-
+        z = np.power((x / lam), (k - 1))
+        w = np.power((x / lam), k)
+        v = k / lam
+        return (k / lam) * z * np.exp(-w)
     return (fT,)
 
 
@@ -133,7 +149,7 @@ def _(mo):
 
 
 @app.cell
-def _(FT, QY):
+def _(FR, FT, QY):
     def GX(x, alpha, beta, k, lam, xmin, a):
         CDF = FT(QY(FR(x, alpha, beta), xmin, a), k, lam)
         return CDF
@@ -147,13 +163,13 @@ def _(mo):
 
 
 @app.cell
-def _(QY, fT, fY):
+def _(FR, QY, dQY, fR, fT):
     def gX(x, a, b, alpha, beta, k, lam):
         A = fT(QY(FR(x, a, b), alpha, beta), k, lam)
-        B = fY(QY(FR(x, a, b), alpha, beta), alpha, beta)
-        C = 1 / B
-        D = fR(x, a, b)
-        return A * C * D
+        b1 = FR(x, a, b)
+        B = dQY(b1, alpha, beta)
+        C = fR(x, a, b)
+        return A * B * C
     return (gX,)
 
 
@@ -227,28 +243,28 @@ def _(mo):
 
 
 @app.cell
-def _(differential_evolution, epsilon, gX, np):
+def _(differential_evolution, gX, np):
     def calc_params_WKLL(data):
         # Log-likelihood function with zero protection
-        def ll(params, data):
+        def ll_WKLL(params):
             a, b, alpha, beta, k, lam = params
-            WKLL_vals = gX(data, a, b, alpha, beta, k, lam) + epsilon
-            WKLL_vals[WKLL_vals <= 0] = 1e-12
-            return -np.sum(np.log(WKLL_vals))
+            y = gX(data, a, b, alpha, beta, k, lam)
+            y[y <= 0] = 1e-12
+            return -np.sum(np.log(y))
 
         # Bounds (tune if needed)
         bounds = [
-            (1e-12, 50),    # a
-            (1e-12, 50),    # b
-            (1e-12, 50),    # alpha
-            (1e-12, 50),    # beta
-            (1e-12, 50),    # k
-            (1e-12, 50)     # lam
+            (1e-5, 10),    # a
+            (1e-5, 10),    # b
+            (1e-5, 50),    # alpha
+            (2.1, 50),    # beta
+            (2.1, 30),    # k
+            (1e-5, 30)     # lam
         ]
 
         # Run global optimization
         result = differential_evolution(
-            lambda p: ll(p, data),
+            ll_WKLL,
             bounds,
             strategy="best1bin",     # Good default mutation strategy
             maxiter=1000,            # 🚀 Increase number of generations (default is 100)
@@ -256,7 +272,7 @@ def _(differential_evolution, epsilon, gX, np):
             mutation=(0.5, 1.0),     # Mutation strength (can widen range to explore more)
             recombination=0.7,       # Crossover probability (how much mixing between solutions)
             polish=True,             # Fine-tune best solution with L-BFGS-B at the end
-            tol=1e-7,                # Convergence tolerance (lower = more precise)
+            tol=1e-4,                # Convergence tolerance (lower = more precise)
             updating="immediate",   # Update as soon as better solution is found (more aggressive)
             )
 
@@ -269,47 +285,50 @@ def _(differential_evolution, epsilon, gX, np):
 
 @app.cell
 def _(np):
-    x = np.linspace(1e-12,1 - 1e-12, 2000000)
+    x = np.linspace(1e-12,1 - 1e-12, 10000)
     return (x,)
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Calc Params Code""")
+    mo.md(r"""Calc Params Code""")
     return
 
 
 @app.cell
-def _(expon, norm, np, skewnorm):
-    norm1 = np.clip(norm.rvs(loc=0.5, scale=0.1, size=1000), 1e-12, 1 - 1e-12)
-    norm2 = np.clip(norm.rvs(loc=0.5, scale=0.2, size=1000), 1e-12, 1 - 1e-12)
-    rskew = np.clip(skewnorm.rvs(a=10, loc=0.2, scale=0.15, size=1000), 1e-12, 1 - 1e-12)
-    lskew = np.clip(skewnorm.rvs(a=-10, loc=0.8, scale=0.15, size=1000), 1e-12, 1 - 1e-12)
-    bimod = np.clip(np.concatenate([
-        norm.rvs(loc=0.3, scale=0.05, size=500),
-        norm.rvs(loc=0.7, scale=0.05, size=500)
-    ]), 1e-12, 1 - 1e-12)
-    lexp = np.clip(
-        0.8 + np.where(np.random.rand(1000) < 0.5, -expon.rvs(scale=0.1, size=1000), expon.rvs(scale=0.1, size=1000)),
-        1e-12, 1 - 1e-12
-    )
-    rexp = np.clip(expon.rvs(loc=0.5, scale=0.2, size=1000), 1e-12, 1 - 1e-12)
+def _(calc_params_WKLL, norm, np, skewnorm):
+    norm1 = np.clip(norm.rvs(loc=0.5, scale=0.09, size=10000), 1e-5, 1 - 1e-5)
+    norm2 = np.clip(norm.rvs(loc=0.5, scale=0.15, size=10000), 1e-12, 1 - 1e-12)
+    rskew = np.clip(skewnorm.rvs(a=25, loc=0.1, scale=0.25, size=10000), 1e-12, 1 - 1e-12)
+    lskew = np.clip(skewnorm.rvs(a=-25, loc=0.9, scale=0.25, size=10000), 1e-12, 1 - 1e-12)
+    bimod = np.clip(np.concatenate([norm.rvs(loc=0.3, scale=0.065, size=5000), norm.rvs(loc=0.7, scale=0.065, size=5000)]), 1e-12, 1 - 1e-12)
+    #lexp = np.clip(
+    #    0.8 + np.where(np.random.rand(1000) < 0.5, -expon.rvs(scale=0.1, size=1000), expon.rvs(scale=0.1, size=1000)),
+    #    1e-12, 1 - 1e-12
+    #)
+    #rexp = np.clip(expon.rvs(loc=0.5, scale=0.2, size=1000), 1e-12, 1 - 1e-12)
 
 
     #norm1_params = calc_params_WKLL(norm1)
     #norm2_params = calc_params_WKLL(norm2)
-    #rskew_params = calc_params_WKLL(rskew)
+    rskew_params = calc_params_WKLL(rskew)
     #lskew_params = calc_params_WKLL(lskew)
-    #bimod_params = calc_params_WKLL(bimod)
+    bimod_params = calc_params_WKLL(bimod)
     #lexp_params = calc_params_WKLL(lexp)
     #rexp_params = calc_params_WKLL(rexp)
-    return
+    return rskew, rskew_params
 
 
 @app.cell
-def _(gX, plt, x):
+def _(gX, plt, rskew, rskew_params, sns, x):
     fig5, ax5 = plt.subplots()
-    ax5.plot(x, gX(x,   5.06818413, 5, 8.34554499,  4.74054469,  1.86875224,  8.92884737), lw=3)
+    sns.histplot(rskew, bins=70, stat='density', ax=ax5, color='gray')
+    ax5.set_xlim(0, 1)
+    ax5.set_ylim(0, 5)
+    #ax5.plot(x, fT(x, 1.9, 0.5))
+    ax5.plot(x, gX(x, *rskew_params), lw=3, color='red')
+    ax5.grid()
+    fig5.gca()
     return
 
 
@@ -348,7 +367,7 @@ def _(gX, simpson, trapezoid, x):
 
 @app.cell
 def _(mo):
-    mo.md(r"""#Data Application""")
+    mo.md(r"""### Data Application""")
     return
 
 
@@ -397,7 +416,7 @@ def _(COscaled, app_params, ax7, gX, plt, sns, x):
 
 @app.cell
 def _(mo):
-    mo.md(r"""75.64729711 15.66737991 32.36835104  1.0035376  33.37492693 48.338096 """)
+    mo.md(r"""75.64729711 15.66737991 32.36835104  1.0035376  33.37492693 48.338096""")
     return
 
 
