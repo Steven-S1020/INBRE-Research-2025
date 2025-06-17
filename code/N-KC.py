@@ -9,7 +9,6 @@ def _():
     import numpy as np
     import marimo as mo
     import pandas as pd
-    import jinja2
     import seaborn as sns
     import matplotlib.pyplot as plt
     from matplotlib.font_manager import FontProperties
@@ -173,8 +172,8 @@ def _(F_R, Q_Y, f_R, f_T, uQ_Y):
 
 
 @app.cell
-def _(F_R, F_T, Q_Y):
-    def N_KC(x, a, b, gamma, mu, sigma):
+def _(F_R, F_T, Q_Y, mu):
+    def N_KC(x, a, b, gamma, m, sigma):
         return F_T(Q_Y(F_R(x, a, b), gamma), mu, sigma)
     return (N_KC,)
 
@@ -187,20 +186,12 @@ def _(mo):
 
 @app.cell
 def _(differential_evolution, epsilon, n_kc, np):
-    def calc_params_NKC(data):
+    def calc_params_NKC(data, bounds):
         def ll_nkc(params):
             a, b, gamma, mu, sigma = params
             y = n_kc(data, a, b, gamma, mu, sigma)
             y[y <= 0] = epsilon
             return -np.sum(np.log(y))
-
-        bounds = [
-            (1e-12, 2.5),  # a
-            (1e-12, 2.5),  # b
-            (1e-12, 30),  # lam
-            (-30, 30),  # mu
-            (1e-12, 30),  # sigma
-        ]
 
         result = differential_evolution(
             ll_nkc,
@@ -250,17 +241,12 @@ def _(differential_evolution, epsilon, gamma, np):
 
 @app.cell
 def _(beta, differential_evolution, epsilon, np):
-    def calc_params_beta(data):
+    def calc_params_beta(data, bounds):
         def ll_beta(params):
             a, b = params
             y = beta.pdf(data, a, b)
             y[y <= 0] = epsilon
             return -np.sum(np.log(y))
-
-        bounds = [
-            (1, 5),  # a
-            (1, 5),  # b
-        ]
 
         result = differential_evolution(
             ll_beta,
@@ -276,6 +262,36 @@ def _(beta, differential_evolution, epsilon, np):
         )
         return result.x, -result.fun
     return (calc_params_beta,)
+
+
+@app.cell
+def _(differential_evolution, epsilon, norm, np):
+    def calc_params_norm(data):
+        def ll_norm(params):
+            mu, sig = params
+            y = norm.pdf(data, mu, sig)
+            y[y <= 0] = epsilon
+            return -np.sum(np.log(y))
+
+        bounds = [
+            (-5, 5),  # mu
+            (epsilon, 10),  # sigma
+        ]
+
+        result = differential_evolution(
+            ll_norm,
+            bounds,
+            strategy="best1bin",
+            maxiter=1000,
+            popsize=20,
+            mutation=(0.5, 1.0),
+            recombination=0.7,
+            polish=True,
+            tol=1e-4,
+            updating="immediate",
+        )
+        return result.x, -result.fun
+    return
 
 
 @app.cell
@@ -344,6 +360,7 @@ def _():
     nkc_param_names = ["a", "b", "\\lambda", "\\mu", "\\sigma"]
     ncbl_param_names = ["\\mu", "\\sigma", "\\alpha", "\\lambda"]
     beta_param_names = ["\\alpha", "\\beta"]
+    norm_param_names = ['\\mu', '\\sigma']
 
 
     def format_label(
@@ -426,11 +443,19 @@ def _(calc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
         1 - epsilon,
     )
 
-    norm1_params, norm1_ll = calc_params_NKC(norm1)
-    norm2_params, norm2_ll = calc_params_NKC(norm2)
-    rskew_params, rskew_ll = calc_params_NKC(rskew)
-    lskew_params, lskew_ll = calc_params_NKC(lskew)
-    bimod_params, bimod_ll = calc_params_NKC(bimod)
+    bounds = [
+        (1e-12, 2.5),  # a
+        (1e-12, 2.5),  # b
+        (1e-12, 20),   # lam
+        (-15, 15),     # mu
+        (1e-12, 30),
+    ]
+
+    norm1_params, norm1_ll = calc_params_NKC(norm1, bounds)
+    norm2_params, norm2_ll = calc_params_NKC(norm2, bounds)
+    rskew_params, rskew_ll = calc_params_NKC(rskew, bounds)
+    lskew_params, lskew_ll = calc_params_NKC(lskew, bounds)
+    bimod_params, bimod_ll = calc_params_NKC(bimod, bounds)
 
     nkc_norm1 = n_kc(x, *norm1_params)
     nkc_norm2 = n_kc(x, *norm2_params)
@@ -439,6 +464,7 @@ def _(calc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
     nkc_bimod = n_kc(x, *bimod_params)
     return (
         bimod_params,
+        bounds,
         lskew_params,
         nkc_bimod,
         nkc_lskew,
@@ -476,7 +502,7 @@ def _(mo):
         align="center",
         gap=5,
     )
-    return
+    return mo_a, mo_b, mo_gamma, mo_mu, mo_sigma
 
 
 @app.cell
@@ -489,6 +515,12 @@ def _(
     greenc,
     lskew_params,
     mo,
+    mo_a,
+    mo_b,
+    mo_gamma,
+    mo_mu,
+    mo_sigma,
+    n_kc,
     nkc_bimod,
     nkc_lskew,
     nkc_norm1,
@@ -526,6 +558,7 @@ def _(
     ax1.plot(x, nkc_rskew, label=label_rskew, color=greenc, lw=2)
     ax1.plot(x, nkc_lskew, label=label_lskew, color=bluec, lw=2)
     ax1.plot(x, nkc_bimod, label=label_bimod, color=pinkc, lw=2)
+    ax1.plot(x, n_kc(x, mo_a.value, mo_b.value, mo_gamma.value, mo_mu.value, mo_sigma.value))
 
     ax1.set_xlim(0, 1)
     ax1.set_ylim(0, 5.6)
@@ -600,21 +633,30 @@ def _(mo):
 
 @app.cell
 def _(pd):
-    df = pd.read_csv(
-        "./data/Global Air Quality (2024) - 6 Cities/New_York_Air_Quality.csv"
-    )
-    return (df,)
+    df_GAQ = pd.read_csv('./data/Global Air Quality (2024) - 6 Cities/New_York_Air_Quality.csv', usecols=['NO2'])
+    return (df_GAQ,)
 
 
 @app.cell
-def _(calc_params_NKC, calc_params_beta, calc_params_ncbl, df, epsilon):
-    raw_NO2 = df["NO2"].values
-    adjusted_NO2 = raw_NO2 + epsilon
-    scaled_NO2 = adjusted_NO2 / adjusted_NO2.max()
-    scaled_NO2[scaled_NO2 >= 1.0] = 1.0 - epsilon
+def _(
+    bounds,
+    calc_params_NKC,
+    calc_params_beta,
+    calc_params_ncbl,
+    df_GAQ,
+    epsilon,
+):
+    raw_NO2 = df_GAQ["NO2"].values
+    adjusted_NO2 = raw_NO2 + abs(raw_NO2.min()) + epsilon
+    scaled_NO2 = adjusted_NO2 / (adjusted_NO2.max() + epsilon)
 
-    nkc_ny_no2_params, nkc_ny_no2_ll = calc_params_NKC(scaled_NO2)
-    beta_ny_no2_params, beta_ny_no2_ll = calc_params_beta(scaled_NO2)
+    bounds_beta = [
+        (1, 5),  # a
+        (1, 5),  # b
+    ]
+
+    nkc_ny_no2_params, nkc_ny_no2_ll = calc_params_NKC(scaled_NO2, bounds)
+    beta_ny_no2_params, beta_ny_no2_ll = calc_params_beta(scaled_NO2, bounds_beta)
     ncbl_ny_no2_params, ncbl_ny_no2_ll = calc_params_ncbl(scaled_NO2)
     return (
         beta_ny_no2_ll,
@@ -671,7 +713,13 @@ def _(
         label=r"$\,N\!-\!CB\{L\}\,$",
     )
 
-    ax3.plot(x, n_kc(x, *nkc_ny_no2_params), label=label_nkc, color=redc, lw=2)
+    ax3.plot(
+        x,
+        n_kc(x, *nkc_ny_no2_params),
+        label=label_nkc,
+        color=redc,
+        lw=2
+    )
     ax3.plot(
         x,
         beta.pdf(x, *beta_ny_no2_params),
@@ -689,6 +737,7 @@ def _(
         ls="--",
     )
 
+
     ax3.set_xlim(0, 1)
     ax3.set_ylim(0, 3.6)
     ax3.set_xlabel(r"$X$ Value")
@@ -697,17 +746,16 @@ def _(
     ax3.set_title("Nitrogen Dioxide Concentration in µg/m³")
     ax3.legend(prop=FontProperties(family="monospace", size=12))
     ax3.grid()
-    mo.as_html(fig3).center()
 
     result_data = {
-        "Distributions": ["NKC", "NCBL", "Beta"],
+        "Distributions": ['NKC', 'NCBL', 'Beta'],
         "AIC": [
-            AIC(5, nkc_ny_no2_ll, precision=2),
+            AIC(4, nkc_ny_no2_ll, precision=2),
             AIC(4, ncbl_ny_no2_ll, precision=2),
             AIC(2, beta_ny_no2_ll, precision=2),
         ],
         "BIC": [
-            BIC(5, raw_NO2.size, nkc_ny_no2_ll, precision=2),
+            BIC(4, raw_NO2.size, nkc_ny_no2_ll, precision=2),
             BIC(4, raw_NO2.size, ncbl_ny_no2_ll, precision=2),
             BIC(2, raw_NO2.size, beta_ny_no2_ll, precision=2),
         ],
@@ -715,6 +763,84 @@ def _(
     df_res = pd.DataFrame(result_data)
 
     mo.hstack([mo.as_html(fig3), mo.as_html(df_res).style(width="800px")], justify='center', gap=5)
+    return
+
+
+@app.cell
+def _(pd):
+    df_Pave = pd.read_csv('./data/Pavement Dataset/ESC 12 Pavement Dataset.csv', usecols=['Rutting'])
+    return (df_Pave,)
+
+
+@app.cell
+def _(df_Pave, epsilon):
+    raw_rutt = df_Pave['Rutting'].values
+    adjusted_rutt = raw_rutt + abs(raw_rutt.min()) + epsilon
+    scaled_rutt = adjusted_rutt / (adjusted_rutt.max() + epsilon)
+    return raw_rutt, scaled_rutt
+
+
+@app.cell
+def _(bounds, calc_params_NKC, scaled_rutt):
+    nkc_rutt_params, nkc_rutt_ll = calc_params_NKC(scaled_rutt, bounds)
+    return nkc_rutt_ll, nkc_rutt_params
+
+
+@app.cell
+def _(
+    BIC,
+    FontProperties,
+    format_label,
+    grayc,
+    mo,
+    n_kc,
+    nkc_param_names,
+    nkc_rutt_ll,
+    nkc_rutt_params,
+    pd,
+    plt,
+    raw_rutt,
+    redc,
+    scaled_rutt,
+    sns,
+    x,
+):
+    fig4, ax4 = plt.subplots(dpi=100)
+    sns.histplot(scaled_rutt, bins=59, stat="density", ax=ax4, color=grayc)
+
+    label_nkc_rutt = format_label(
+        dict(zip(nkc_param_names, nkc_rutt_params)), label=r"$\,N\!-\!K\{C\}\,$ "
+    )
+
+    ax4.plot(
+        x,
+        n_kc(x, *nkc_rutt_params),
+        label=label_nkc_rutt,
+        color=redc,
+        lw=2
+    )
+
+    #ax4.set_xlim(0, 1)
+    #ax4.set_ylim(0, 5.6)
+    ax4.set_xlabel(r"$X$ Sleep in Hours Scaled by factor of  $\frac{1}{9.6}$")
+    ax4.set_ylabel("Density")
+
+    ax4.set_title("Avg. Sleep for Ages 16-25")
+    ax4.legend(prop=FontProperties(family="monospace", size=12))
+    ax4.grid()
+
+    result_rutt_data = {
+        "Distributions": ['NKC'],
+        "AIC": [
+            AIC(4, nkc_rutt_ll, precision=2),
+        ],
+        "BIC": [
+            BIC(4, raw_rutt.size, nkc_rutt_ll, precision=2),
+        ],
+    }
+    df_rutt_res = pd.DataFrame(result_rutt_data)
+
+    mo.hstack([mo.as_html(fig4), mo.as_html(df_rutt_res).style(width="800px")], justify='center', gap=5)
     return
 
 
