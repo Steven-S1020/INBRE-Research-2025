@@ -36,7 +36,6 @@ def _():
         pi,
         plt,
         skewnorm,
-        sns,
         trapezoid,
         weibull_min,
     )
@@ -399,15 +398,7 @@ def _(calc_params_NKC, norm, np, skewnorm):
     rskew_params = calc_params_NKC(rskew)
     lskew_params = calc_params_NKC(lskew)
     bimod_params = calc_params_NKC(bimod)
-    return (
-        bimod_params,
-        lskew_params,
-        norm1_params,
-        norm2,
-        norm2_params,
-        rskew_params,
-        x,
-    )
+    return norm1_params, x
 
 
 @app.cell
@@ -428,18 +419,7 @@ def _(mo):
 
 
 @app.cell
-def _(
-    bimod_params,
-    lskew_params,
-    n_kc,
-    norm1_params,
-    norm2,
-    norm2_params,
-    plt,
-    rskew_params,
-    sns,
-    x,
-):
+def _(n_gc, plt, x):
     redc = '#a4031f'
     grayc = '#dddde3'
     greenc = '#88bf9b'
@@ -448,27 +428,45 @@ def _(
 
     fig, ax = plt.subplots()
 
-    ax.plot(x, n_kc(x, *norm1_params), label='norm1', color=redc, lw=2)
-    ax.plot(x, n_kc(x, *norm2_params), label='norm2', color=grayc, lw=2)
-    ax.plot(x, n_kc(x, *rskew_params),  label='rskew',  color=greenc, lw=2)
-    ax.plot(x, n_kc(x, *lskew_params), label='lskew',  color=bluec, lw=2)
-    ax.plot(x, n_kc(x, *bimod_params), label='bimod',  color=pinkc, lw=2)
+    ngc_norm1 = n_gc(x, 0.93, 10, 15.25, 3.95, 27.4)
+    ngc_norm2 = n_gc(x, 0.91, 10, 19.9, 10.5, 34)
+    ngc_lskew = n_gc(x, 6.5, 1.9, 17, 10, 9)
+    ngc_rskew = n_gc(x, 0.6, 10, 0, 18, 26)
+    ngc_bimodal = n_gc(x, 4.6, 2, 8, 20, 4.67)
 
-    sns.histplot(norm2, bins=70, stat='density', ax=ax, color=grayc)
+    ax.plot(x, ngc_norm1, c=redc, lw=2, label=fr'$\alpha=0.93,\ \theta=10,\ \mu=15.25,\ \sigma=3.95,\ \lambda=27.4$')
+    ax.plot(x, ngc_norm2, c=bluec, lw=2, label=fr'$\alpha=0.91,\ \theta=10,\ \mu=19.9,\ \sigma=10.5,\ \lambda=34$')
+    ax.plot(x, ngc_lskew, c=greenc, lw=2, label=fr'$\alpha=6.5,\ \theta=1.9,\ \mu=17,\ \sigma=10,\ \lambda=9$')
+    ax.plot(x, ngc_rskew, c=grayc, lw=2, label=fr'$\alpha=0.6,\ \theta=10,\ \mu=0,\ \sigma=18,\ \lambda=26$')
+    ax.plot(x, ngc_bimodal, c=pinkc, lw=2, label=fr'$\alpha=4.6,\ \theta=2,\ \mu=8,\ \sigma=20,\ \lambda=4.67$')
+
+    #ax.plot(x, n_kc(x, *norm1_params), label='norm1', color=redc, lw=2)
+    #ax.plot(x, n_kc(x, *norm2_params), label='norm2', color=grayc, lw=2)
+    #ax.plot(x, n_kc(x, *rskew_params),  label='rskew',  color=greenc, lw=2)
+    #ax.plot(x, n_kc(x, *lskew_params), label='lskew',  color=bluec, lw=2)
+    #ax.plot(x, n_kc(x, *bimod_params), label='bimod',  color=pinkc, lw=2)
+
+    #sns.histplot(norm2, bins=70, stat='density', ax=ax, color=grayc)
 
     #ax.plot(x, w_kc(x, mo_a.value, mo_b.value, mo_lam.value, mo_c.value), lw=3)
 
-    title = r'$\,W\!-\!K\{C\}\,$ Distribution'
+    title = r'$\,N\!-\!K\{C\}\,$ Distribution'
     ax.set_title(title, fontsize=28, pad=20)
     ax.set_xlabel(xlabel=r'$X$ Value', fontsize=28, labelpad=20)
-    ax.set_ylabel('Probability', fontsize=28, labelpad=20)
+    ax.set_ylabel('Density', fontsize=28, labelpad=20)
 
     ax.legend(fontsize=14)
     #ax.set_xlim(0,1)
-    ax.set_ylim(0,6)
+    #ax.set_ylim(0,6)
     ax.grid()
     ax.tick_params(labelsize=20)
     fig.gca()
+    return ngc_bimodal, ngc_lskew, ngc_norm1, ngc_norm2, ngc_rskew
+
+
+@app.cell
+def _():
+    #fig.savefig("N-", format="svg")
     return
 
 

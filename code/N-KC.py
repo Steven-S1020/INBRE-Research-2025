@@ -16,7 +16,7 @@ def _():
     from functools import partial
     from scipy.constants import pi
     from scipy.integrate import trapezoid
-    from scipy.stats import norm, cauchy, skewnorm, beta, gamma, lognorm
+    from scipy.stats import norm, cauchy, skewnorm, beta, gamma, lognorm, fisk, weibull_min
     from scipy.optimize import differential_evolution
 
     redc = "#a4031f"
@@ -56,6 +56,7 @@ def _():
         cauchy,
         differential_evolution,
         epsilon,
+        fisk,
         gamma,
         grayc,
         greenc,
@@ -72,6 +73,7 @@ def _():
         skewnorm,
         sns,
         trapezoid,
+        weibull_min,
     )
 
 
@@ -183,34 +185,30 @@ def _(F_R, F_T, Q_Y):
 
 
 @app.cell
-def _(mo):
-    mo.md(r"""## Calculations""")
-    return
+def _(F_R, epsilon, f_R, fisk, weibull_min):
+    def w_kl(x, a, b, alpha, k):
+
+        p = F_R(x, a, b)
+        q = fisk.ppf(p, alpha, scale=1)
+
+        fy = fisk.pdf(q, alpha, scale=1)
+        ft = weibull_min.pdf(q, k, scale=1)
+        fr = f_R(x, a, b)
+
+        fy[fy <= 0] = epsilon
+        fy[fy >= 1] = 1 - epsilon
+
+        val = ft * (1 / fy) * fr
+
+        # Replace non-finite values with epsilon
+        return val
+    return (w_kl,)
 
 
 @app.cell
-def _(differential_evolution, epsilon, n_kc, np):
-    def Tcalc_params_NKC(data, bounds):
-        def Tll_nkc(params):
-            a, b, gamma, mu = params
-            y = n_kc(data, a, b, gamma, mu)
-            y[y <= 0] = epsilon
-            return -np.sum(np.log(y))
-
-        result = differential_evolution(
-            Tll_nkc,
-            bounds,
-            strategy="best1bin",
-            maxiter=1000,
-            popsize=20,
-            mutation=(0.5, 1.0),
-            recombination=0.7,
-            polish=True,
-            tol=1e-2,
-            updating='immediate'
-        )
-        return result.x, -result.fun
-    return (Tcalc_params_NKC,)
+def _(mo):
+    mo.md(r"""## Calculations""")
+    return
 
 
 @app.cell
@@ -237,6 +235,39 @@ def _(differential_evolution, epsilon, n_kc, np, partial):
         )
         return result.x, -result.fun
     return (calc_params_NKC,)
+
+
+@app.cell
+def _(differential_evolution, epsilon, np, partial, w_kl):
+    def ll_wkl(params, data):
+        a, b, alpha, k = params
+        y = w_kl(data, a, b, alpha, k)
+        y[y <= 0] = epsilon
+        return -np.sum(np.log(y))
+
+    def calc_params_WKL(data):
+        bounds = [
+            (epsilon, 20),  # a
+            (epsilon, 20),  # b
+            (epsilon, 15), # alpha
+            (epsilon, 10),  # k
+        ]
+
+        result = differential_evolution(
+            partial(ll_wkl, data=data),
+            bounds,
+            strategy="currenttobest1bin",
+            maxiter=1000,
+            popsize=20,
+            mutation=(0.5, 1.0),
+            recombination=0.7,
+            polish=True,
+            tol=1e-2,
+            workers=-1,
+            updating='deferred'
+        )
+        return result.x, -result.fun
+    return
 
 
 @app.cell
@@ -458,6 +489,7 @@ def _():
     norm_param_names = ['\\mu', '\\sigma']
     gamma_param_names = ['\\alpha', '\\theta']
     ks_param_names = ['a', 'b']
+    wkl_param_names = ['a', 'b', '\\alpha', 'k']
 
 
 
@@ -511,6 +543,7 @@ def _():
         ks_param_names,
         ncbl_param_names,
         nkc_param_names,
+        wkl_param_names,
     )
 
 
@@ -521,7 +554,7 @@ def _(mo):
 
 
 @app.cell
-def _(N_KC, Tcalc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
+def _(N_KC, calc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
     x = np.linspace(epsilon, 1 - epsilon, 10000)
 
     norm1 = np.clip(
@@ -554,11 +587,11 @@ def _(N_KC, Tcalc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
         (-30, 30),     # mu
     ]
 
-    norm1_params, norm1_ll = Tcalc_params_NKC(norm1, bounds)
-    norm2_params, norm2_ll = Tcalc_params_NKC(norm2, bounds)
-    rskew_params, rskew_ll = Tcalc_params_NKC(rskew, bounds)
-    lskew_params, lskew_ll = Tcalc_params_NKC(lskew, bounds)
-    bimod_params, bimod_ll = Tcalc_params_NKC(bimod, bounds)
+    norm1_params, norm1_ll = calc_params_NKC(norm1, bounds)
+    norm2_params, norm2_ll = calc_params_NKC(norm2, bounds)
+    rskew_params, rskew_ll = calc_params_NKC(rskew, bounds)
+    lskew_params, lskew_ll = calc_params_NKC(lskew, bounds)
+    bimod_params, bimod_ll = calc_params_NKC(bimod, bounds)
 
     nkc_norm1 = n_kc(x, *norm1_params)
     nkc_norm2 = n_kc(x, *norm2_params)
@@ -577,6 +610,7 @@ def _(N_KC, Tcalc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
         NKC_norm1,
         NKC_norm2,
         NKC_rskew,
+        bimod,
         bimod_params,
         bounds,
         lskew_params,
@@ -594,11 +628,11 @@ def _(N_KC, Tcalc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
 
 @app.cell
 def _(mo):
-    mo_a = mo.ui.number(start=0.001, stop=2.5, step=0.00001, value=0.0011, label=rf"$a$")
-    mo_b = mo.ui.number(start=0.00000001, stop=2.5, step=0.00001, value=0.000755, label=rf"$b$")
-    mo_gamma = mo.ui.number(start=0.1, stop=30, step=0.1, value=1.21, label=rf"$\gamma$")
-    mo_mu = mo.ui.number(start=-80, stop=30, step=0.001, value=-71.644, label=rf"$\mu$")
-    mo_sigma = mo.ui.number(start=0.001, stop=30, step=0.001, value=3.014, label=rf"$\sigma$")
+    mo_a = mo.ui.number(start=0.001, stop=2.5, step=0.00001, value=1.9, label=rf"$a$")
+    mo_b = mo.ui.number(start=0.00000001, stop=2.5, step=0.00001, value=1.6, label=rf"$b$")
+    mo_gamma = mo.ui.number(start=0.1, stop=30, step=0.1, value=0.9, label=rf"$\gamma$")
+    mo_mu = mo.ui.number(start=-80, stop=30, step=0.001, value=-0.1, label=rf"$\mu$")
+    mo_sigma = mo.ui.number(start=0.001, stop=30, step=0.001, value=1, label=rf"$\sigma$")
 
     mo.hstack([mo_a, mo_b, mo_gamma, mo_mu, mo_sigma], justify="center", align="center", gap=5,)
     return
@@ -633,7 +667,9 @@ def _(
     rskew_params,
     x,
 ):
-    fig1, (ax1, ax2) = plt.subplots(1, 2, figsize=(20,10))
+    #fig1, (ax1, ax2) = plt.subplots(1, 2, figsize=(20,10))
+    fig1, ax1 = plt.subplots()
+    fig8, ax2 = plt.subplots()
 
     label_norm1 = format_label(dict(zip(nkc_param_names, norm1_params)), label="norm1", param_width=15)
     label_norm2 = format_label(dict(zip(nkc_param_names, norm2_params)), label="norm2", param_width=15)
@@ -671,8 +707,13 @@ def _(
     ax2.set_title(r'$\,N\!-\!K\{C\}\,$ CDF')
     ax2.legend(prop=FontProperties(family="monospace", size=10))
     ax2.grid()
-
     mo.as_html(fig1.gca()).center()
+    return
+
+
+@app.cell
+def _():
+    #fig1.savefig("N-KC", format="pdf")
     return
 
 
@@ -701,12 +742,13 @@ def _(pd):
 @app.cell
 def _(
     ScaleAdjustData,
-    Tcalc_params_NKC,
     bounds,
+    calc_params_NKC,
     calc_params_beta,
     calc_params_ks,
     calc_params_ncbl,
     df_GAQ,
+    pd,
 ):
     raw_NO2 = df_GAQ["NO2"].values
     scaled_NO2 = ScaleAdjustData(raw_NO2)
@@ -716,23 +758,32 @@ def _(
         (1, 5),  # b
     ]
 
-    nkc_ny_no2_params, nkc_ny_no2_ll = Tcalc_params_NKC(scaled_NO2, bounds)
-    beta_ny_no2_params, beta_ny_no2_ll = calc_params_beta(scaled_NO2, bounds_beta)
-    ncbl_ny_no2_params, ncbl_ny_no2_ll = calc_params_ncbl(scaled_NO2)
-    ks_ny_no2_params, ks_ny_no2_ll = calc_params_ks(scaled_NO2)
+    nkc_no2_params, nkc_no2_ll = calc_params_NKC(scaled_NO2, bounds)
+    beta_no2_params, beta_no2_ll = calc_params_beta(scaled_NO2, bounds_beta)
+    ncbl_no2_params, ncbl_no2_ll = calc_params_ncbl(scaled_NO2)
+    ks_no2_params, ks_no2_ll = calc_params_ks(scaled_NO2)
+
+    wkl_no2 = pd.read_csv('./data/output.csv')
     return (
-        beta_ny_no2_ll,
-        beta_ny_no2_params,
+        beta_no2_ll,
+        beta_no2_params,
         bounds_beta,
-        ks_ny_no2_ll,
-        ks_ny_no2_params,
-        ncbl_ny_no2_ll,
-        ncbl_ny_no2_params,
-        nkc_ny_no2_ll,
-        nkc_ny_no2_params,
+        ks_no2_ll,
+        ks_no2_params,
+        ncbl_no2_ll,
+        ncbl_no2_params,
+        nkc_no2_ll,
+        nkc_no2_params,
         raw_NO2,
         scaled_NO2,
+        wkl_no2,
     )
+
+
+@app.cell
+def _(epsilon, np):
+    wkl_x = np.linspace(epsilon, 1 - epsilon, 1000)
+    return (wkl_x,)
 
 
 @app.cell
@@ -740,25 +791,25 @@ def _(
     BIC,
     FontProperties,
     beta,
-    beta_ny_no2_ll,
-    beta_ny_no2_params,
+    beta_no2_ll,
+    beta_no2_params,
     beta_param_names,
     bluec,
     f_R,
     format_label,
     grayc,
     greenc,
-    ks_ny_no2_ll,
-    ks_ny_no2_params,
+    ks_no2_ll,
+    ks_no2_params,
     ks_param_names,
     mo,
     n_cbl,
     n_kc,
-    ncbl_ny_no2_ll,
-    ncbl_ny_no2_params,
+    ncbl_no2_ll,
+    ncbl_no2_params,
     ncbl_param_names,
-    nkc_ny_no2_ll,
-    nkc_ny_no2_params,
+    nkc_no2_ll,
+    nkc_no2_params,
     nkc_param_names,
     pd,
     pinkc,
@@ -767,20 +818,26 @@ def _(
     redc,
     scaled_NO2,
     sns,
+    wkl_no2,
+    wkl_param_names,
+    wkl_x,
     x,
 ):
     fig3, ax3 = plt.subplots(dpi=100)
     sns.histplot(scaled_NO2, bins=70, stat="density", ax=ax3, color=grayc)
 
-    label_nkc = format_label(dict(zip(nkc_param_names, nkc_ny_no2_params)), label=r"$\,N\!-\!K\{C\}\ $ ")
-    label_beta = format_label(dict(zip(beta_param_names, beta_ny_no2_params)), label=r"Beta     ")
-    label_ncbl = format_label(dict(zip(ncbl_param_names, ncbl_ny_no2_params)), label=r"$\,N\!-\!CB\{L\}\ $",)
-    label_ks = format_label(dict(zip(ks_param_names, ks_ny_no2_params)), label='KS       ')
+    label_nkc = format_label(dict(zip(nkc_param_names, nkc_no2_params)), label=r"$\,N\!-\!K\{C\}\ $ ")
+    label_beta = format_label(dict(zip(beta_param_names, beta_no2_params)), label=r"Beta     ")
+    label_ncbl = format_label(dict(zip(ncbl_param_names, ncbl_no2_params)), label=r"$\,N\!-\!CB\{L\}\ $",)
+    label_ks = format_label(dict(zip(ks_param_names, ks_no2_params)), label='KS       ')
+    label_wkl = format_label(dict(zip(wkl_param_names, [3.109, 0.655, 50, 0.477])), label=r'$\,W\!-\!K\{L\}\ $')
 
-    ax3.plot(x, n_kc(x, *nkc_ny_no2_params), label=label_nkc, color=redc, lw=2)
-    ax3.plot(x, beta.pdf(x, *beta_ny_no2_params), label=label_beta, color=bluec, lw=2, ls="--",)
-    ax3.plot(x, n_cbl(x, *ncbl_ny_no2_params), label=label_ncbl, color=greenc, lw=2, ls="--",)
-    ax3.plot(x, f_R(x, *ks_ny_no2_params), label=label_ks, color=pinkc, lw=2, ls='--')
+    ax3.plot(x, n_kc(x, *nkc_no2_params), label=label_nkc, color=redc, lw=2)
+    ax3.plot(x, beta.pdf(x, *beta_no2_params), label=label_beta, color=bluec, lw=2, ls="--",)
+    ax3.plot(x, n_cbl(x, *ncbl_no2_params), label=label_ncbl, color=greenc, lw=2, ls="--",)
+    ax3.plot(x, f_R(x, *ks_no2_params), label=label_ks, color=pinkc, lw=2, ls='--')
+    ax3.plot(wkl_x, wkl_no2['x'], label=label_wkl, color=greenc, lw=2)
+
 
     ax3.set_xlim(0, 1)
     ax3.set_ylim(0, 3.6)
@@ -792,23 +849,31 @@ def _(
     ax3.grid()
 
     result_data = {
-        "Distributions": ['NKC', 'NCBL', 'Beta', 'KS'],
+        "Distributions": ['NKC', 'NCBL', 'Beta', 'KS', 'WKL'],
         "AIC": [
-            AIC(4, nkc_ny_no2_ll, precision=2),
-            AIC(4, ncbl_ny_no2_ll, precision=2),
-            AIC(2, beta_ny_no2_ll, precision=2),
-            AIC(2, ks_ny_no2_ll, precision=2),
+            AIC(4, nkc_no2_ll, precision=2),
+            AIC(4, ncbl_no2_ll, precision=2),
+            AIC(2, beta_no2_ll, precision=2),
+            AIC(2, ks_no2_ll, precision=2),
+            -7213.03,
         ],
         "BIC": [
-            BIC(4, raw_NO2.size, nkc_ny_no2_ll, precision=2),
-            BIC(4, raw_NO2.size, ncbl_ny_no2_ll, precision=2),
-            BIC(2, raw_NO2.size, beta_ny_no2_ll, precision=2),
-            BIC(2, raw_NO2.size, ks_ny_no2_ll, precision=2)
+            BIC(4, raw_NO2.size, nkc_no2_ll, precision=2),
+            BIC(4, raw_NO2.size, ncbl_no2_ll, precision=2),
+            BIC(2, raw_NO2.size, beta_no2_ll, precision=2),
+            BIC(2, raw_NO2.size, ks_no2_ll, precision=2),
+            -7184.71,
         ],
     }
     df_res = pd.DataFrame(result_data)
 
     mo.hstack([mo.as_html(fig3), mo.as_html(df_res).style(width="800px")], justify='center', gap=5)
+    return
+
+
+@app.cell
+def _():
+    #fig3.savefig("NO2", format="pdf")
     return
 
 
@@ -829,6 +894,12 @@ def _(ScaleAdjustData, df_HA):
     raw_HR = df_HA.loc[(df_HA['Result'] == 'positive') & (df_HA['Heart rate'] < 200), 'Heart rate']
     scaled_HR = ScaleAdjustData(raw_HR)
     return raw_HR, scaled_HR
+
+
+@app.cell
+def _(df_HA):
+    df_HA
+    return
 
 
 @app.cell
@@ -864,6 +935,12 @@ def _(
 
 
 @app.cell
+def _(pd):
+    wkl_HR = pd.read_csv('./data/output2.csv')
+    return (wkl_HR,)
+
+
+@app.cell
 def _(
     BIC,
     FontProperties,
@@ -884,7 +961,6 @@ def _(
     n_kc,
     ncbl_HR_ll,
     ncbl_HR_params,
-    ncbl_ny_no2_params,
     ncbl_param_names,
     nkc_HR_ll,
     nkc_HR_params,
@@ -896,6 +972,8 @@ def _(
     redc,
     scaled_HR,
     sns,
+    wkl_HR,
+    wkl_param_names,
     x,
 ):
     fig4, ax4 = plt.subplots(dpi=100)
@@ -903,16 +981,18 @@ def _(
 
     label_nkc_HR = format_label(dict(zip(nkc_param_names, nkc_HR_params)), label=r'$\,N\!-\!K\{C\}\ $  ')
     label_beta_HR = format_label(dict(zip(beta_param_names, beta_HR_params)), label=r'Beta      ')
-    label_ncbl_HR = format_label(dict(zip(ncbl_param_names, ncbl_ny_no2_params)), label=r"$\,N\!-\!CB\{L\}\ $ ",)
+    label_ncbl_HR = format_label(dict(zip(ncbl_param_names, ncbl_HR_params)), label=r"$\,N\!-\!CB\{L\}\ $ ",)
     label_ks_HR = format_label(dict(zip(ks_param_names, ks_HR_params)), label='KS        ')
+    label_wkl_HR = format_label(dict(zip(wkl_param_names, [3.109, 0.655, 50, 0.477])), label=r'$\,W\!-\!K\{L\}\ $')
 
     ax4.plot(x, n_kc(x, *nkc_HR_params), label=label_nkc_HR, color=redc, lw=2)
     ax4.plot(x, beta.pdf(x, *beta_HR_params), label=label_beta_HR, color=bluec, lw=2, ls='--')
     ax4.plot(x, n_cbl(x, *ncbl_HR_params), label=label_ncbl_HR, color=greenc, lw=2, ls='--')
     ax4.plot(x, f_R(x, *ks_HR_params), label=label_ks_HR, color=pinkc, lw=2, ls='--')
+    ax4.plot(x, wkl_HR['x'], label=label_wkl_HR, color=pinkc, lw=2)
 
     ax4.set_xlim(0, 1)
-    ax4.set_ylim(0, 4.6)
+    ax4.set_ylim(0, 5)
     ax4.set_xlabel(r'Heart Rate BPM Scaled by factor of  $1\colon135$')
     ax4.set_ylabel("Density")
 
@@ -938,6 +1018,62 @@ def _(
     df_HR_res = pd.DataFrame(result_HR_data)
 
     mo.hstack([mo.as_html(fig4), mo.as_html(df_HR_res).style(width="800px")], justify='center', gap=5)
+    return
+
+
+@app.cell
+def _(bimod, bounds, calc_params_NKC, epsilon, norm, np):
+    bounds_gamma = [
+        (epsilon,20),
+        (epsilon,20),
+
+    ]
+    bimod_test = np.clip(
+        np.concatenate(
+            [
+                norm.rvs(loc=0.25, scale=0.08, size=5000),
+                norm.rvs(loc=0.75, scale=0.08, size=5000),
+            ]
+        ),
+        epsilon,
+        1 - epsilon,
+    )
+    norm_test = norm.rvs(loc=0.4, scale=0.11, size=5000)
+    norm_test[norm_test <= 0] = epsilon
+    norm_test[norm_test >= 1] = 1 - epsilon
+    gamma_params, gamma_ll = calc_params_NKC(bimod, bounds)
+    return (gamma_params,)
+
+
+@app.cell
+def _(bluec, epsilon, gamma_params, grayc, n_kc, np, plt, redc, skewnorm, x):
+    fig5, ax5 = plt.subplots(dpi=100)
+
+    x_bins = np.linspace(epsilon, 1-epsilon, 20)
+    y_bins = n_kc(x_bins, *gamma_params)
+    width = x_bins[1] - x_bins[0]
+    np.random.seed(0)  # for reproducibility
+    noise = np.random.normal(loc=0, scale=0.2, size=len(y_bins))  # small normal noise
+    y_noisy = y_bins * (1 + noise)  # jittered bar heights
+    y_noisy = np.clip(y_noisy, 0, None)
+    ax5.bar(x_bins, y_noisy, width=width, align='center', alpha=0.4, edgecolor=grayc)
+
+
+    #sns.histplot(n_kc(x, *gamma_params), bins=40, stat='density', ax=ax5, color=grayc)
+    ax5.plot(x, skewnorm.pdf(x, 20, loc=0.15, scale=0.3), color=bluec)
+    ax5.plot(x, n_kc(x, *gamma_params), color=redc)
+    ax5.set_xlim(0,1)
+    ax5.set_ylim(0,4)
+    ax5.set_xlabel(r'$X$ Value')
+    ax5.set_title('Bimodal Data')
+    ax5.grid()
+    fig5.gca()
+    return
+
+
+@app.cell
+def _(gamma_params):
+    print(*gamma_params)
     return
 
 
