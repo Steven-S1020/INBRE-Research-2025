@@ -13,6 +13,7 @@ def _():
     import matplotlib.pyplot as plt
     from matplotlib.font_manager import FontProperties
 
+    from functools import partial
     from scipy.constants import pi
     from scipy.integrate import trapezoid
     from scipy.stats import norm, cauchy, skewnorm, beta, gamma, lognorm
@@ -62,6 +63,7 @@ def _():
         mo,
         norm,
         np,
+        partial,
         pd,
         pi,
         pinkc,
@@ -188,15 +190,15 @@ def _(mo):
 
 @app.cell
 def _(differential_evolution, epsilon, n_kc, np):
-    def calc_params_NKC(data, bounds):
-        def ll_nkc(params):
+    def Tcalc_params_NKC(data, bounds):
+        def Tll_nkc(params):
             a, b, gamma, mu = params
             y = n_kc(data, a, b, gamma, mu)
             y[y <= 0] = epsilon
             return -np.sum(np.log(y))
 
         result = differential_evolution(
-            ll_nkc,
+            Tll_nkc,
             bounds,
             strategy="best1bin",
             maxiter=1000,
@@ -205,7 +207,33 @@ def _(differential_evolution, epsilon, n_kc, np):
             recombination=0.7,
             polish=True,
             tol=1e-2,
-            updating="immediate",
+            updating='immediate'
+        )
+        return result.x, -result.fun
+    return (Tcalc_params_NKC,)
+
+
+@app.cell
+def _(differential_evolution, epsilon, n_kc, np, partial):
+    def ll_nkc(params, data):
+        a, b, gamma, mu = params
+        y = n_kc(data, a, b, gamma, mu)
+        y[y <= 0] = epsilon
+        return -np.sum(np.log(y))
+
+    def calc_params_NKC(data, bounds):
+        result = differential_evolution(
+            partial(ll_nkc, data=data),
+            bounds,
+            strategy="currenttobest1bin",
+            maxiter=1000,
+            popsize=20,
+            mutation=(0.5, 1.0),
+            recombination=0.7,
+            polish=True,
+            tol=1e-2,
+            workers=-1,
+            updating='deferred'
         )
         return result.x, -result.fun
     return (calc_params_NKC,)
@@ -493,7 +521,7 @@ def _(mo):
 
 
 @app.cell
-def _(N_KC, calc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
+def _(N_KC, Tcalc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
     x = np.linspace(epsilon, 1 - epsilon, 10000)
 
     norm1 = np.clip(
@@ -526,11 +554,11 @@ def _(N_KC, calc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
         (-30, 30),     # mu
     ]
 
-    norm1_params, norm1_ll = calc_params_NKC(norm1, bounds)
-    norm2_params, norm2_ll = calc_params_NKC(norm2, bounds)
-    rskew_params, rskew_ll = calc_params_NKC(rskew, bounds)
-    lskew_params, lskew_ll = calc_params_NKC(lskew, bounds)
-    bimod_params, bimod_ll = calc_params_NKC(bimod, bounds)
+    norm1_params, norm1_ll = Tcalc_params_NKC(norm1, bounds)
+    norm2_params, norm2_ll = Tcalc_params_NKC(norm2, bounds)
+    rskew_params, rskew_ll = Tcalc_params_NKC(rskew, bounds)
+    lskew_params, lskew_ll = Tcalc_params_NKC(lskew, bounds)
+    bimod_params, bimod_ll = Tcalc_params_NKC(bimod, bounds)
 
     nkc_norm1 = n_kc(x, *norm1_params)
     nkc_norm2 = n_kc(x, *norm2_params)
@@ -673,8 +701,8 @@ def _(pd):
 @app.cell
 def _(
     ScaleAdjustData,
+    Tcalc_params_NKC,
     bounds,
-    calc_params_NKC,
     calc_params_beta,
     calc_params_ks,
     calc_params_ncbl,
@@ -688,7 +716,7 @@ def _(
         (1, 5),  # b
     ]
 
-    nkc_ny_no2_params, nkc_ny_no2_ll = calc_params_NKC(scaled_NO2, bounds)
+    nkc_ny_no2_params, nkc_ny_no2_ll = Tcalc_params_NKC(scaled_NO2, bounds)
     beta_ny_no2_params, beta_ny_no2_ll = calc_params_beta(scaled_NO2, bounds_beta)
     ncbl_ny_no2_params, ncbl_ny_no2_ll = calc_params_ncbl(scaled_NO2)
     ks_ny_no2_params, ks_ny_no2_ll = calc_params_ks(scaled_NO2)
