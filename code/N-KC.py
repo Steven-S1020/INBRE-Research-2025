@@ -234,7 +234,7 @@ def _(differential_evolution, epsilon, n_kc, np, partial):
             updating='deferred'
         )
         return result.x, -result.fun
-    return (calc_params_NKC,)
+    return calc_params_NKC, ll_nkc
 
 
 @app.cell
@@ -471,13 +471,40 @@ def _(mo):
 
 
 @app.cell
-def _(epsilon):
+def _(epsilon, np, pd):
     def ScaleAdjustData(raw):
-        if raw.min() < 0:
-            adjusted = raw + abs(raw.min() + epsilon)
+        """
+        Scales the input data to the range [0, 1] with epsilon adjustment.
+        Returns the same type as input: ndarray, Series, or DataFrame.
+        """
+        input_type = type(raw)
+
+        # Extract values for computation
+        if isinstance(raw, pd.DataFrame):
+            if raw.shape[1] != 1:
+                raise ValueError("Expected a single-column DataFrame")
+            values = raw.iloc[:, 0].to_numpy()
+        elif isinstance(raw, pd.Series):
+            values = raw.to_numpy()
         else:
-            adjusted = raw - raw.min() + epsilon
-        return adjusted / (adjusted.max() + epsilon)
+            values = np.asarray(raw)
+
+        values = values.flatten()
+
+        # Perform scaling
+        if values.min() < 0:
+            adjusted = values + abs(values.min() + epsilon)
+        else:
+            adjusted = values - values.min() + epsilon
+        scaled = adjusted / (adjusted.max() + epsilon)
+
+        # Return in same format
+        if isinstance(raw, pd.Series):
+            return pd.Series(scaled, index=raw.index, name=raw.name)
+        elif isinstance(raw, pd.DataFrame):
+            return pd.DataFrame({raw.columns[0]: scaled}, index=raw.index)
+        else:
+            return scaled
     return (ScaleAdjustData,)
 
 
@@ -610,7 +637,6 @@ def _(N_KC, calc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
         NKC_norm1,
         NKC_norm2,
         NKC_rskew,
-        bimod,
         bimod_params,
         bounds,
         lskew_params,
@@ -713,7 +739,7 @@ def _(
 
 @app.cell
 def _():
-    #fig1.savefig("N-KC", format="pdf")
+    #fig8.savefig("N-KC_CDF", format="pdf")
     return
 
 
@@ -833,10 +859,12 @@ def _(
     label_wkl = format_label(dict(zip(wkl_param_names, [3.109, 0.655, 50, 0.477])), label=r'$\,W\!-\!K\{L\}\ $')
 
     ax3.plot(x, n_kc(x, *nkc_no2_params), label=label_nkc, color=redc, lw=2)
-    ax3.plot(x, beta.pdf(x, *beta_no2_params), label=label_beta, color=bluec, lw=2, ls="--",)
-    ax3.plot(x, n_cbl(x, *ncbl_no2_params), label=label_ncbl, color=greenc, lw=2, ls="--",)
-    ax3.plot(x, f_R(x, *ks_no2_params), label=label_ks, color=pinkc, lw=2, ls='--')
     ax3.plot(wkl_x, wkl_no2['x'], label=label_wkl, color=greenc, lw=2)
+    ax3.plot(x, n_cbl(x, *ncbl_no2_params), label=label_ncbl, color=greenc, lw=2, ls="--",)
+    ax3.plot(x, beta.pdf(x, *beta_no2_params), label=label_beta, color=bluec, lw=2, ls="--",)
+    ax3.plot(x, f_R(x, *ks_no2_params), label=label_ks, color=pinkc, lw=2, ls='--')
+
+    #ax3.plot(x, n_kc(x, *avg_params), color=pinkc)
 
 
     ax3.set_xlim(0, 1)
@@ -874,6 +902,54 @@ def _(
 @app.cell
 def _():
     #fig3.savefig("NO2", format="pdf")
+    return
+
+
+@app.cell
+def _(BIC, ScaleAdjustData, bounds, calc_params_NKC, df_GAQ, ll_nkc, np):
+    # Scale the data before splitting
+    scaled_series = ScaleAdjustData(df_GAQ['NO2'])  # returns a Series
+
+    sum_params = np.zeros(4)  # Assuming 4 parameters in nkc_train_params
+    num_iters = 0
+
+    for i in range(num_iters):
+        # Split into test and train using the index
+        test_data = scaled_series.sample(frac=0.2)
+        train_data = scaled_series.drop(test_data.index)
+
+        # Convert to NumPy arrays
+        test_data = test_data.to_numpy()
+        train_data = train_data.to_numpy()
+
+        # Train on training data
+        nkc_train_params, nkc_train_ll = calc_params_NKC(train_data, bounds)
+
+        # Sum the parameters
+        sum_params += np.array(nkc_train_params)
+
+        # Evaluate log-likelihood on test data
+        nkc_test_ll = -ll_nkc(nkc_train_params, test_data)
+
+        # Report results
+        print(f"Run {i+1}")
+        print('  Params: ', *nkc_train_params)
+        print('  Log-Likelihood: ', nkc_test_ll)
+        print('  AIC: ', AIC(4, nkc_test_ll, precision=2))
+        print('  BIC: ', BIC(4, test_data.size, nkc_test_ll, precision=2))
+
+    # Optional: compute average
+    avg_params = sum_params / num_iters
+    print('\nAverage Params over', num_iters, 'runs:', avg_params)
+    return (avg_params,)
+
+
+@app.cell
+def _(BIC, avg_params, ll_nkc, raw_NO2, scaled_NO2):
+    nkc_final_ll = -ll_nkc(avg_params, scaled_NO2)
+    print('Log-Likelihood: ', nkc_final_ll)
+    print('AIC: ', AIC(4, nkc_final_ll, precision=2))
+    print('BIC: ', BIC(4, raw_NO2.size, nkc_final_ll, precision=2))
     return
 
 
@@ -983,7 +1059,7 @@ def _(
     label_beta_HR = format_label(dict(zip(beta_param_names, beta_HR_params)), label=r'Beta      ')
     label_ncbl_HR = format_label(dict(zip(ncbl_param_names, ncbl_HR_params)), label=r"$\,N\!-\!CB\{L\}\ $ ",)
     label_ks_HR = format_label(dict(zip(ks_param_names, ks_HR_params)), label='KS        ')
-    label_wkl_HR = format_label(dict(zip(wkl_param_names, [3.109, 0.655, 50, 0.477])), label=r'$\,W\!-\!K\{L\}\ $')
+    label_wkl_HR = format_label(dict(zip(wkl_param_names, [])), label=r'$\,W\!-\!K\{L\}\ $')
 
     ax4.plot(x, n_kc(x, *nkc_HR_params), label=label_nkc_HR, color=redc, lw=2)
     ax4.plot(x, beta.pdf(x, *beta_HR_params), label=label_beta_HR, color=bluec, lw=2, ls='--')
@@ -1018,62 +1094,6 @@ def _(
     df_HR_res = pd.DataFrame(result_HR_data)
 
     mo.hstack([mo.as_html(fig4), mo.as_html(df_HR_res).style(width="800px")], justify='center', gap=5)
-    return
-
-
-@app.cell
-def _(bimod, bounds, calc_params_NKC, epsilon, norm, np):
-    bounds_gamma = [
-        (epsilon,20),
-        (epsilon,20),
-
-    ]
-    bimod_test = np.clip(
-        np.concatenate(
-            [
-                norm.rvs(loc=0.25, scale=0.08, size=5000),
-                norm.rvs(loc=0.75, scale=0.08, size=5000),
-            ]
-        ),
-        epsilon,
-        1 - epsilon,
-    )
-    norm_test = norm.rvs(loc=0.4, scale=0.11, size=5000)
-    norm_test[norm_test <= 0] = epsilon
-    norm_test[norm_test >= 1] = 1 - epsilon
-    gamma_params, gamma_ll = calc_params_NKC(bimod, bounds)
-    return (gamma_params,)
-
-
-@app.cell
-def _(bluec, epsilon, gamma_params, grayc, n_kc, np, plt, redc, skewnorm, x):
-    fig5, ax5 = plt.subplots(dpi=100)
-
-    x_bins = np.linspace(epsilon, 1-epsilon, 20)
-    y_bins = n_kc(x_bins, *gamma_params)
-    width = x_bins[1] - x_bins[0]
-    np.random.seed(0)  # for reproducibility
-    noise = np.random.normal(loc=0, scale=0.2, size=len(y_bins))  # small normal noise
-    y_noisy = y_bins * (1 + noise)  # jittered bar heights
-    y_noisy = np.clip(y_noisy, 0, None)
-    ax5.bar(x_bins, y_noisy, width=width, align='center', alpha=0.4, edgecolor=grayc)
-
-
-    #sns.histplot(n_kc(x, *gamma_params), bins=40, stat='density', ax=ax5, color=grayc)
-    ax5.plot(x, skewnorm.pdf(x, 20, loc=0.15, scale=0.3), color=bluec)
-    ax5.plot(x, n_kc(x, *gamma_params), color=redc)
-    ax5.set_xlim(0,1)
-    ax5.set_ylim(0,4)
-    ax5.set_xlabel(r'$X$ Value')
-    ax5.set_title('Bimodal Data')
-    ax5.grid()
-    fig5.gca()
-    return
-
-
-@app.cell
-def _(gamma_params):
-    print(*gamma_params)
     return
 
 
