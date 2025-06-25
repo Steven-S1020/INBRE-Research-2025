@@ -1,6 +1,13 @@
-# INBRE Summer Research 2025
+<h1 align='center'>
+  INBRE Summer Research 2025
+</h1>
 
-This repository contains code, LaTeX documents, and other supporting files for this summer research.
+<span align='center'>
+
+    ![image](https://img.shields.io/badge/PYTHON-white?style=for-the-badge&logo=python&logoColor=white&labelColor=%23660000&color=%23F0B323)
+
+
+</span>
 
 ## Abstract
 
