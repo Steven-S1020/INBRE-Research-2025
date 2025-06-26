@@ -4,7 +4,7 @@
 
 <span align='center'>
 
-    ![image](https://img.shields.io/badge/PYTHON-white?style=for-the-badge&logo=python&logoColor=white&labelColor=%23660000&color=%23F0B323)
+  ![Static Badge](https://img.shields.io/badge/PYTHON-%23660000?style=for-the-badge&logo=python&logoColor=white&labelColor=%23660000&color=%23F0B323)
 
 
 </span>
