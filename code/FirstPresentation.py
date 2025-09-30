@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.6"
+__generated_with = "0.15.2"
 app = marimo.App(width="medium")
 
 
@@ -139,7 +139,6 @@ def _(gamma, np, plt, sns):
         ax.grid()
         ax.legend()
         return fig
-
     return (make_gamma_fig,)
 
 

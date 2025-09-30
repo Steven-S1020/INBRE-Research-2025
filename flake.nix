@@ -1,24 +1,33 @@
 {
-  description = "Flake for {{name}} Project";
+  description = "Python flake with common packages";
 
-  inputs.system-flake.url = "github:Steven-S1020/Nixos-Configuration";
-  inputs.nixpkgs.follows = "system-flake/nixpkgs";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  };
 
   outputs =
-    { system-flake, nixpkgs, ... }:
+    { self, nixpkgs }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
-
-      # Base devShell to use
-      base = system-flake.devShells.${system}.dsci;
+      pythonEnv = pkgs.python3.withPackages (
+        ps: with ps; [
+          pkgs.python313
+          marimo
+          matplotlib
+          numpy
+          pandas
+          pip
+          python-lsp-server
+          seaborn
+          scipy
+          sympy
+        ]
+      );
     in
     {
       devShells.${system}.default = pkgs.mkShell {
-        # Extra Packages not included in base devShell
-        buildInputs = base.buildInputs ++ [
-          # Add Packages Here
-        ];
+        buildInputs = [ pythonEnv ];
       };
     };
 }

@@ -37,7 +37,7 @@ def _():
     plt.rcParams["axes.labelsize"] = 20
     plt.rcParams["axes.labelpad"] = 20
     plt.rcParams["axes.titlesize"] = 26
-    plt.rcParams["axes.titlepad"] = 20
+    plt.rcParams["axes.titlepad"] = 15
     plt.rcParams["xtick.labelsize"] = 18
     plt.rcParams["ytick.labelsize"] = 18
     plt.rcParams["xtick.bottom"] = True
@@ -60,7 +60,6 @@ def _():
         gamma,
         grayc,
         greenc,
-        lognorm,
         mo,
         norm,
         np,
@@ -75,12 +74,6 @@ def _():
         trapezoid,
         weibull_min,
     )
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""## R: Kumaraswamy""")
-    return
 
 
 @app.cell
@@ -100,12 +93,6 @@ def _(epsilon, np):
 
 
 @app.cell
-def _(mo):
-    mo.md(r"""## Y: Cauchy""")
-    return
-
-
-@app.cell
 def _(cauchy):
     def Q_Y(x, gamma):  # Quantile of Cauchy
         return cauchy.ppf(x, scale=gamma)
@@ -120,12 +107,6 @@ def _(np, pi):
 
 
 @app.cell
-def _(mo):
-    mo.md(r"""## T: Normal""")
-    return
-
-
-@app.cell
 def _(norm):
     def F_T(x, mu):
         return norm.cdf(x, loc=mu)
@@ -137,12 +118,6 @@ def _(norm):
     def f_T(x, mu):
         return norm.pdf(x, loc=mu)
     return (f_T,)
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""## Composite""")
-    return
 
 
 @app.cell
@@ -185,6 +160,18 @@ def _(F_R, F_T, Q_Y):
 
 
 @app.cell
+def _(np):
+    def S(cdf):
+        return (1 - cdf)
+
+    def H(pdf, cdf):
+        denom = 1 - cdf
+        denom = np.where(np.abs(denom) < 1e-12, 1e-12, denom)
+        return pdf / denom
+    return H, S
+
+
+@app.cell
 def _(F_R, epsilon, f_R, fisk, weibull_min):
     def w_kl(x, a, b, alpha, k):
 
@@ -203,12 +190,6 @@ def _(F_R, epsilon, f_R, fisk, weibull_min):
         # Replace non-finite values with epsilon
         return val
     return (w_kl,)
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""## Calculations""")
-    return
 
 
 @app.cell
@@ -239,7 +220,7 @@ def _(differential_evolution, epsilon, n_kc, np, partial):
 
 @app.cell
 def _(differential_evolution, epsilon, np, partial, w_kl):
-    def ll_wkl(params, data):
+    def nll_wkl(params, data):
         a, b, alpha, k = params
         y = w_kl(data, a, b, alpha, k)
         y[y <= 0] = epsilon
@@ -254,7 +235,7 @@ def _(differential_evolution, epsilon, np, partial, w_kl):
         ]
 
         result = differential_evolution(
-            partial(ll_wkl, data=data),
+            partial(nll_wkl, data=data),
             bounds,
             strategy="currenttobest1bin",
             maxiter=1000,
@@ -271,153 +252,97 @@ def _(differential_evolution, epsilon, np, partial, w_kl):
 
 
 @app.cell
-def _(differential_evolution, epsilon, f_R, np):
-    def calc_params_ks(data):
-        def ll_ks(params):
+def _(differential_evolution, epsilon, f_R, np, partial):
+    def nll_ks(params, data):
             a, b = params
             y = f_R(data, a, b)
             y[y <= 0] = epsilon
             return -np.sum(np.log(y))
 
+    def calc_params_ks(data):
         bounds = [
             (1e-5, 5),   # a
             (1e-5, 5),   # b
         ]
 
         result = differential_evolution(
-            ll_ks,
+            partial(nll_ks, data=data),
             bounds,
-            strategy="best1bin",
+            strategy="currenttobest1bin",
             maxiter=1000,
             popsize=20,
             mutation=(0.5, 1.0),
             recombination=0.7,
             polish=True,
             tol=1e-2,
-            updating="immediate",
+            workers=-1,
+            updating='deferred'
         )
         return result.x, -result.fun
     return (calc_params_ks,)
 
 
 @app.cell
-def _(differential_evolution, epsilon, gamma, np):
-    def calc_params_gamma(data, bounds):
-        def ll_gamma(params):
+def _(differential_evolution, epsilon, gamma, np, partial):
+    def nll_gamma(params, data):
             shape, scale = params
             y = gamma.pdf(data, a=shape, scale=scale)
             y[y <= 0] = epsilon
             return -np.sum(np.log(y))
 
+    def calc_params_gamma(data, bounds):
         result = differential_evolution(
-            ll_gamma,
+            partial(nll_gamma, data=data),
             bounds,
-            strategy="best1bin",
+            strategy="currenttobest1bin",
             maxiter=1000,
             popsize=20,
             mutation=(0.5, 1.0),
             recombination=0.7,
             polish=True,
-            tol=1e-4,
-            updating="immediate",
+            tol=1e-2,
+            workers=-1,
+            updating='deferred'
         )
         return result.x, -result.fun
     return
 
 
 @app.cell
-def _(beta, differential_evolution, epsilon, np):
-    def calc_params_beta(data, bounds):
-        def ll_beta(params):
+def _(beta, differential_evolution, epsilon, np, partial):
+    def nll_beta(params, data):
             a, b = params
             y = beta.pdf(data, a, b)
             y[y <= 0] = epsilon
             return -np.sum(np.log(y))
 
+    def calc_params_beta(data, bounds):
         result = differential_evolution(
-            ll_beta,
+            partial(nll_beta, data=data),
             bounds,
-            strategy="best1bin",
+            strategy="currenttobest1bin",
             maxiter=1000,
             popsize=20,
             mutation=(0.5, 1.0),
             recombination=0.7,
             polish=True,
-            tol=1e-8,
-            updating="immediate",
+            tol=1e-2,
+            workers=-1,
+            updating='deferred'
         )
         return result.x, -result.fun
     return (calc_params_beta,)
 
 
 @app.cell
-def _(differential_evolution, epsilon, lognorm, np):
-    def calc_params_lognorm(data):
-        def ll_lognorm(params):
-            s = params
-            y = lognorm.logpdf(data, s)
-            y[y <= 0] = epsilon
-            return -np.sum(y)
+def _(differential_evolution, epsilon, n_cbl, np, partial):
+    def nll_ncbl(params, data):
+        mu, sig, alpha, lamb = params
+        y = n_cbl(data, mu, sig, alpha, lamb)
+        y[y <= 0] = epsilon
+        return -np.sum(np.log(y))
 
-        bounds = [
-            (0.5, 5),  # s
-        ]
-
-        result = differential_evolution(
-            ll_lognorm,
-            bounds,
-            strategy="best1bin",
-            maxiter=1000,
-            popsize=20,
-            mutation=(0.5, 1.0),
-            recombination=0.7,
-            polish=True,
-            tol=1e-4,
-            updating="immediate",
-        )
-        return result.x, -result.fun
-    return
-
-
-@app.cell
-def _(differential_evolution, epsilon, norm, np):
-    def calc_params_norm(data):
-        def ll_norm(params):
-            mu, sig = params
-            y = norm.pdf(data, mu, sig)
-            y[y <= 0] = epsilon
-            return -np.sum(np.log(y))
-
-        bounds = [
-            (-5, 5),  # mu
-            (epsilon, 10),  # sigma
-        ]
-
-        result = differential_evolution(
-            ll_norm,
-            bounds,
-            strategy="best1bin",
-            maxiter=1000,
-            popsize=20,
-            mutation=(0.5, 1.0),
-            recombination=0.7,
-            polish=True,
-            tol=1e-4,
-            updating="immediate",
-        )
-        return result.x, -result.fun
-    return
-
-
-@app.cell
-def _(differential_evolution, epsilon, n_cbl, np):
     def calc_params_ncbl(data):
-        def ll_ncbl(params):
-            mu, sig, alpha, lamb = params
-            y = n_cbl(data, mu, sig, alpha, lamb)
-            y[y <= 0] = epsilon
-            return -np.sum(np.log(y))
-
         bounds = [
             (-5, 5),  # mu
             (epsilon, 5),  # sigma
@@ -426,16 +351,17 @@ def _(differential_evolution, epsilon, n_cbl, np):
         ]
 
         result = differential_evolution(
-            ll_ncbl,
+            partial(nll_ncbl, data=data),
             bounds,
-            strategy="best1bin",
+            strategy="currenttobest1bin",
             maxiter=1000,
             popsize=20,
             mutation=(0.5, 1.0),
             recombination=0.7,
             polish=True,
-            tol=1e-4,
-            updating="immediate",
+            tol=1e-2,
+            workers=-1,
+            updating='deferred'
         )
         return result.x, -result.fun
     return (calc_params_ncbl,)
@@ -462,12 +388,6 @@ def _(np):
         else:
             return round(((k * np.log(n)) - (2 * ll)), precision)
     return (BIC,)
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""## Helper Functions""")
-    return
 
 
 @app.cell
@@ -517,7 +437,6 @@ def _():
     gamma_param_names = ['\\alpha', '\\theta']
     ks_param_names = ['a', 'b']
     wkl_param_names = ['a', 'b', '\\alpha', 'k']
-
 
 
     def format_label(
@@ -576,12 +495,12 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(r"""## PDF & CDF of $\,N\!-\!K\{C\}\,$""")
+    mo.md(r"""# PDF & CDF of $\,N\!-\!K\{C\}\,$""")
     return
 
 
 @app.cell
-def _(N_KC, calc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
+def _(H, N_KC, S, calc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
     x = np.linspace(epsilon, 1 - epsilon, 10000)
 
     norm1 = np.clip(
@@ -631,12 +550,34 @@ def _(N_KC, calc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
     NKC_rskew = N_KC(x, *rskew_params)
     NKC_lskew = N_KC(x, *lskew_params)
     NKC_bimod = N_KC(x, *bimod_params)
+
+    S_norm1 = S(NKC_norm1)
+    S_norm2 = S(NKC_norm2)
+    S_rskew = S(NKC_rskew)
+    S_lskew = S(NKC_lskew)
+    S_bimod = S(NKC_bimod)
+
+    H_norm1 = H(nkc_norm1, NKC_norm1)
+    H_norm2 = H(nkc_norm2, NKC_norm2)
+    H_rskew = H(nkc_rskew, NKC_rskew)
+    H_lskew = H(nkc_lskew, NKC_lskew)
+    H_bimod = H(nkc_bimod, NKC_bimod)
     return (
+        H_bimod,
+        H_lskew,
+        H_norm1,
+        H_norm2,
+        H_rskew,
         NKC_bimod,
         NKC_lskew,
         NKC_norm1,
         NKC_norm2,
         NKC_rskew,
+        S_bimod,
+        S_lskew,
+        S_norm1,
+        S_norm2,
+        S_rskew,
         bimod_params,
         bounds,
         lskew_params,
@@ -653,25 +594,23 @@ def _(N_KC, calc_params_NKC, epsilon, n_kc, norm, np, skewnorm):
 
 
 @app.cell
-def _(mo):
-    mo_a = mo.ui.number(start=0.001, stop=2.5, step=0.00001, value=1.9, label=rf"$a$")
-    mo_b = mo.ui.number(start=0.00000001, stop=2.5, step=0.00001, value=1.6, label=rf"$b$")
-    mo_gamma = mo.ui.number(start=0.1, stop=30, step=0.1, value=0.9, label=rf"$\gamma$")
-    mo_mu = mo.ui.number(start=-80, stop=30, step=0.001, value=-0.1, label=rf"$\mu$")
-    mo_sigma = mo.ui.number(start=0.001, stop=30, step=0.001, value=1, label=rf"$\sigma$")
-
-    mo.hstack([mo_a, mo_b, mo_gamma, mo_mu, mo_sigma], justify="center", align="center", gap=5,)
-    return
-
-
-@app.cell
 def _(
     FontProperties,
+    H_bimod,
+    H_lskew,
+    H_norm1,
+    H_norm2,
+    H_rskew,
     NKC_bimod,
     NKC_lskew,
     NKC_norm1,
     NKC_norm2,
     NKC_rskew,
+    S_bimod,
+    S_lskew,
+    S_norm1,
+    S_norm2,
+    S_rskew,
     bimod_params,
     bluec,
     format_label,
@@ -693,9 +632,7 @@ def _(
     rskew_params,
     x,
 ):
-    #fig1, (ax1, ax2) = plt.subplots(1, 2, figsize=(20,10))
-    fig1, ax1 = plt.subplots()
-    fig8, ax2 = plt.subplots()
+    fig1, ((ax1, ax2), (ax11, ax12)) = plt.subplots(2, 2, figsize=(20,20))
 
     label_norm1 = format_label(dict(zip(nkc_param_names, norm1_params)), label="norm1", param_width=15)
     label_norm2 = format_label(dict(zip(nkc_param_names, norm2_params)), label="norm2", param_width=15)
@@ -733,13 +670,38 @@ def _(
     ax2.set_title(r'$\,N\!-\!K\{C\}\,$ CDF')
     ax2.legend(prop=FontProperties(family="monospace", size=10))
     ax2.grid()
+
+    ax11.plot(x, S_norm1, label='norm1', color=redc, lw=2)
+    ax11.plot(x, S_norm2, label='norm2', color=grayc, lw=2)
+    ax11.plot(x, S_rskew, label='rskew', color=greenc, lw=2)
+    ax11.plot(x, S_lskew, label='lskew', color=bluec, lw=2)
+    ax11.plot(x, S_bimod, label='bimod', color=pinkc, lw=2)
+
+    ax11.set_xlim(0, 1)
+    ax11.set_ylim(0, 1)
+    ax11.set_xlabel(r"$X$ Value")
+    ax11.set_ylabel("Probability")
+
+    ax11.set_title(r'$\,N\!-\!K\{C\}\,$ Survival Function')
+    ax11.legend(prop=FontProperties(family="monospace", size=10))
+    ax11.grid()
+
+    ax12.plot(x, H_norm1, label='norm1', color=redc, lw=2)
+    ax12.plot(x, H_norm2, label='norm2', color=grayc, lw=2)
+    ax12.plot(x, H_rskew, label='rskew', color=greenc, lw=2)
+    ax12.plot(x, H_lskew, label='lskew', color=bluec, lw=2)
+    ax12.plot(x, H_bimod, label='bimod', color=pinkc, lw=2)
+
+    ax12.set_xlim(0, 1)
+    ax12.set_ylim(0)
+    ax12.set_xlabel(r"$X$ Value")
+    ax12.set_ylabel("Probability")
+
+    ax12.set_title(r'$\,N\!-\!K\{C\}\,$ Hazard Function')
+    ax12.legend(prop=FontProperties(family="monospace", size=10))
+    ax12.grid()
+
     mo.as_html(fig1.gca()).center()
-    return
-
-
-@app.cell
-def _():
-    #fig8.savefig("N-KC_CDF", format="pdf")
     return
 
 
@@ -755,7 +717,7 @@ def _(nkc_bimod, nkc_lskew, nkc_norm1, nkc_norm2, nkc_rskew, trapezoid, x):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Data Fitting Example One""")
+    mo.md(r"""# Application 1""")
     return
 
 
@@ -789,7 +751,7 @@ def _(
     ncbl_no2_params, ncbl_no2_ll = calc_params_ncbl(scaled_NO2)
     ks_no2_params, ks_no2_ll = calc_params_ks(scaled_NO2)
 
-    wkl_no2 = pd.read_csv('./data/output.csv')
+    wkl_no2 = pd.read_csv('./data/Global Air Quality (2024) - 6 Cities/w-kll.csv')
     return (
         beta_no2_ll,
         beta_no2_params,
@@ -900,12 +862,6 @@ def _(
 
 
 @app.cell
-def _():
-    #fig3.savefig("NO2", format="pdf")
-    return
-
-
-@app.cell
 def _(BIC, ScaleAdjustData, bounds, calc_params_NKC, df_GAQ, ll_nkc, np):
     # Scale the data before splitting
     scaled_series = ScaleAdjustData(df_GAQ['NO2'])  # returns a Series
@@ -955,7 +911,7 @@ def _(BIC, avg_params, ll_nkc, raw_NO2, scaled_NO2):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Data Fitting Example Two""")
+    mo.md(r"""# Application 2""")
     return
 
 
@@ -970,12 +926,6 @@ def _(ScaleAdjustData, df_HA):
     raw_HR = df_HA.loc[(df_HA['Result'] == 'positive') & (df_HA['Heart rate'] < 200), 'Heart rate']
     scaled_HR = ScaleAdjustData(raw_HR)
     return raw_HR, scaled_HR
-
-
-@app.cell
-def _(df_HA):
-    df_HA
-    return
 
 
 @app.cell
@@ -1012,7 +962,7 @@ def _(
 
 @app.cell
 def _(pd):
-    wkl_HR = pd.read_csv('./data/output2.csv')
+    wkl_HR = pd.read_csv('./data/HeartAttacks/w-kll.csv')
     return (wkl_HR,)
 
 
