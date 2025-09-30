@@ -21,8 +21,19 @@ Using this framework,the N-K{C} and W-K{LL} are defined, and arise from the Kuma
 These models are fitted to data using differential evolution and evaluated using AIC and BIC values. Comparisons with generic distributions demonstrate the increased flexibility of the framework-based models.
 
 ## Application
+#### Click badge to see the demo of one of the new distributions we made!
+<span align='center'>
 
+  [![Open with marimo](https://marimo.io/shield.svg)](https://steven-s1020.github.io/INBRE-Research-2025/)
 
+</span>
+
+#### PDF & CDF of the N-K{C} Distribution
+
+| ![PDF 1](assets/n-kc.pdf) | ![PDF 2](assets/N-KC.pdf) |
+|-----------------------------|-----------------------------|
+
+#### PDF & CDF of the W-K{LL}
 
 ## Contributors
 
