@@ -2,14 +2,14 @@
   INBRE Summer Research 2025
 </h1>
 
-<span align='center'>
+<div align='center'>
 
   ![Static Badge](https://img.shields.io/badge/PYTHON-%23660000?style=for-the-badge&logo=python&logoColor=white&labelColor=%23660000&color=%23F0B323)
   ![Static Badge](https://img.shields.io/badge/scipy-%23660000?style=for-the-badge&logo=scipy&logoColor=white&labelColor=%23660000&color=%23f0b323)
   ![Static Badge](https://img.shields.io/badge/numpy-%23660000?style=for-the-badge&logo=numpy&logoColor=white&labelColor=%23660000&color=%23f0b323)
   ![Static Badge](https://img.shields.io/badge/pandas-%23660000?style=for-the-badge&logo=pandas&logoColor=white&labelColor=%23660000&color=%23f0b323)
 
-</span>
+</div>
 
 ## Abstract
 
