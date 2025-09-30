@@ -71,8 +71,8 @@ def _(a, b, gamma, mo, mu, n_kc_fig):
     mo.vstack([
         mo.md("## Parameters :"),
         mo.md("#"),
-        mo.hstack([a, b, gamma, mu],
-            justify='center', align='center', gap=5),
+        mo.vstack([a, b, gamma, mu],
+            justify='center', align='center', gap=0.5),
         mo.as_html(n_kc_fig(a.value, b.value, gamma.value, mu.value))
         ])
     return
