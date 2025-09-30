@@ -7,12 +7,12 @@ jobs:
 
             - name: 📄 Export notebook
               run: |
-                  marimo export html-wasm notebook.py -o path/to/output --mode run
+                  marimo export html-wasm code/QRCodeDemo.py -o assets/output --mode run
 
             - name: 📦 Upload Pages Artifact
               uses: actions/upload-pages-artifact@v3
               with:
-                  path: path/to/output
+                  path: assets/output
 
     deploy:
         needs: build
