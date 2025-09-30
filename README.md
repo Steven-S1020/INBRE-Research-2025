@@ -33,7 +33,7 @@ These models are fitted to data using differential evolution and evaluated using
 | ![PDF](assets/n-kc.png) | ![CDF](assets/N-KC.png) |
 |-----------------------------|-----------------------------|
 
-#### PDF & CDF of the W-K{LL}
+#### PDF & CDF of the W-K{LL} Distribution
 
 | ![PDF](assets/w-kll.png) | ![CDF](assets/W-KLL.png) |
 |-----------------------------|-----------------------------|
