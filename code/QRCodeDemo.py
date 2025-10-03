@@ -10,9 +10,8 @@ def _():
     import marimo as mo
     import seaborn as sns
     import matplotlib.pyplot as plt
-    from matplotlib.font_manager import FontProperties
     from scipy.constants import pi
-    from scipy.stats import norm, cauchy, weibull_min, fisk
+    from scipy.stats import norm, cauchy
 
     EPSILON = 1e-3
     sns.set_theme(style="white",context="talk",font_scale=1.25,rc={"axes.edgecolor": "black", "grid.color": "silver"})
@@ -48,7 +47,7 @@ def _(EPSILON, cauchy, norm, np, pi):
 @app.cell
 def _(EPSILON, mo, n_kc, np, plt):
     def n_kc_fig(a, b, gamma, mu):
-        x = np.linspace(EPSILON, 1 - EPSILON, 10000)
+        x = np.linspace(EPSILON, 1 - EPSILON, 500)
         fig, ax = plt.subplots()
         ax.plot(x, n_kc(x, a, b, gamma, mu))
         ax.set_xlim(0, 1)
@@ -69,7 +68,7 @@ def _(EPSILON, mo, n_kc, np, plt):
 @app.cell
 def _(a, b, gamma, mo, mu, n_kc_fig):
     mo.vstack([
-        mo.md("## Parameters :"),
+        mo.md("# Parameters :"),
         mo.md("#"),
         mo.vstack([a, b, gamma, mu],
             justify='center', align='center', gap=0.5),
