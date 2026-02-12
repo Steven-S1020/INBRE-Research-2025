@@ -43,7 +43,7 @@ These models are fitted to data using differential evolution and evaluated using
 | Name                      | winthrop.edu                                                           | Github                                    |
 |---------------------------|------------------------------------------------------------------------|-------------------------------------------|
 | Steven Stokes             |                                                                        | [Link ↗](https://github.com/Steven-S1020) |
-| Miguel Villano            |                                                                        | [Link ↗](MiguelVillano)                   |
+| Miguel Villano            |                                                                        | [Link ↗](https://github.com/MiguelVillano)                   |
 | Gihanee Senadheera, Ph.D. | [Link ↗](https://www.winthrop.edu/cas/faculty/senadheera-gihanee.aspx) |                                           |
 
 ## References
